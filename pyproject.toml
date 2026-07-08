@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kartotek-master"
+version = "0.1.0"
+description = "Application Flask légère de suivi GPS (SQLite brut, sans ORM) avec carte OpenStreetMap dynamique"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "Votre équipe" }]
+
+dependencies = [
+    "flask>=3.1,<4",
+    "requests>=2.32,<3",
+    "flask-babel>=4.0,<5",
+]
+
+[project.optional-dependencies]
+prod = [
+    "gunicorn>=23.0,<24",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+kartotek-master = "kartotek_master.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+kartotek_master = ["templates/**/*.html", "templates/**/*.xml", "static/**/*", "translations/**/*.mo"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex, nofollow">
+<style>
+  main.page{ max-width: 1000px; }
+  .status-table{
+    width:100%; border-collapse: collapse; font-size:13px;
+    font-family:'JetBrains Mono', monospace;
+  }
+  .status-table th, .status-table td{
+    text-align:left; padding:8px 10px; border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  .status-table th{ color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase; }
+  .status-dot{
+    display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;
+  }
+  .status-dot.ok{ background:var(--accent); box-shadow:0 0 5px var(--accent); }
+  .status-dot.error{ background:var(--danger); box-shadow:0 0 5px var(--danger); }
+  .status-dot.pending{ background:var(--text-dim); }
+  .status-error-msg{ color:var(--danger); font-size:12px; }
+  .status-empty{ color:var(--text-dim); font-size:14px; }
+  .status-summary{ color:var(--text-dim); font-size:13px; margin-bottom:20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>{{ page_title }}</h1>
+
+<p class="status-summary">{{ _('%(n)s points GPS en base au total.', n=total_points) }}</p>
+
+{% if not servers %}
+<p class="status-empty">{{ _('Aucun serveur synchronisé pour le moment.') }}</p>
+{% else %}
+<table class="status-table">
+  <thead>
+    <tr>
+      <th></th>
+      <th>{{ _('Nom') }}</th>
+      <th>{{ _('URL') }}</th>
+      <th>dbid</th>
+      <th>{{ _('Dernière vérification') }}</th>
+      <th>{{ _('Dernière synchro') }}</th>
+      <th>{{ _('Points') }}</th>
+      <th>{{ _('Dernière erreur') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for server in servers %}
+    <tr>
+      <td>
+        {% if server.last_error %}
+          <span class="status-dot error" title="{{ _('Erreur') }}"></span>
+        {% elif server.last_sync %}
+          <span class="status-dot ok" title="{{ _('OK') }}"></span>
+        {% else %}
+          <span class="status-dot pending" title="{{ _('Jamais synchronisé') }}"></span>
+        {% endif %}
+      </td>
+      <td>{{ server.name or '—' }}</td>
+      <td>{{ server.server_url }}</td>
+      <td>{{ server.dbid or '—' }}</td>
+      <td>{{ server.last_check or '—' }}</td>
+      <td>{{ server.last_sync or '—' }}</td>
+      <td>{{ server.points_count }}</td>
+      <td>{% if server.last_error %}<span class="status-error-msg">{{ server.last_error }}</span>{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

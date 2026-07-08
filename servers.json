@@ -1,0 +1,10 @@
+[
+  {
+      'name':"serveur1",
+      'url':"http://serveur1.example.com",
+  }
+  {
+      'name':"serveur2",
+      "url":"http://serveur2.example.com"
+  }
+]

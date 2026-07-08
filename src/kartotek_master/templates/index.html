@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ _('KartoTek') }}</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/icon.svg') }}">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<style>
+  :root{
+    --bg-deep:#10161f;
+    --bg-panel:#161f2b;
+    --line:#26313f;
+    --text-main:#e7edf3;
+    --text-dim:#8ea0b3;
+    --accent:#39d6c8;
+    --accent-dim:#1f8e85;
+    --warn:#e0a458;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--bg-deep);
+    color:var(--text-main);
+  }
+  #map{ position:absolute; inset:0; z-index:0; }
+
+  /* Panneau de recherche flottant */
+  .search-panel{
+    position:absolute; top:16px; left:16px; z-index:1000;
+    width:320px;
+    background:rgba(22,31,43,0.92);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
+    backdrop-filter:blur(6px);
+    overflow:hidden;
+  }
+  .search-panel .row{ display:flex; align-items:center; padding:10px 12px; gap:8px; }
+  .search-panel input{
+    flex:1; background:transparent; border:none; outline:none;
+    color:var(--text-main); font-size:14px; font-family:'Inter',sans-serif;
+  }
+  .search-panel input::placeholder{ color:var(--text-dim); }
+  .search-panel svg{ flex-shrink:0; opacity:0.7; }
+  #search-results{ border-top:1px solid var(--line); max-height:220px; overflow-y:auto; }
+  #search-results div{
+    padding:9px 12px; font-size:13px; cursor:pointer; color:var(--text-dim);
+    border-bottom:1px solid var(--line);
+  }
+  #search-results div:last-child{ border-bottom:none; }
+  #search-results div:hover{ background:rgba(57,214,200,0.08); color:var(--text-main); }
+
+  /* Panneau de statut */
+  .status-panel{
+    position:absolute; bottom:16px; left:16px; z-index:1000;
+    background:rgba(22,31,43,0.92);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 14px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    line-height:1.6;
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  .status-panel .n{ color:var(--accent); font-weight:600; }
+  .status-panel .dot{
+    display:inline-block; width:7px; height:7px; border-radius:50%;
+    background:var(--accent); margin-right:6px; box-shadow:0 0 6px var(--accent);
+  }
+
+  .locate-btn{
+    position:absolute; top:16px; right:16px; z-index:1000;
+    width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+    background:rgba(22,31,43,0.92); color:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  .locate-btn:hover{ background:rgba(57,214,200,0.12); }
+
+  /* Panneau des serveurs affichés sur la carte (liste avec ascenseur) */
+  .servers-panel{
+    position:absolute; top:16px; right:64px; z-index:1000;
+    width:260px;
+    background:rgba(22,31,43,0.92);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
+    backdrop-filter:blur(6px);
+    overflow:hidden;
+    max-height:min(50vh, 360px);
+  }
+  #servers-list{
+    overflow-y:auto;
+    max-height:min(50vh, 360px);
+    scrollbar-width:thin;
+    scrollbar-color:var(--accent-dim) transparent;
+  }
+  #servers-list::-webkit-scrollbar{ width:8px; }
+  #servers-list::-webkit-scrollbar-thumb{ background:var(--accent-dim); border-radius:4px; }
+  #servers-list::-webkit-scrollbar-track{ background:transparent; }
+  #servers-list .empty{
+    padding:12px; font-size:12px; color:var(--text-dim);
+  }
+  .server-row{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 12px; border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+  }
+  .server-row:last-child{ border-bottom:none; }
+  .server-row .swatch{
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+    box-shadow:0 0 5px currentColor;
+  }
+  .server-row .url{
+    flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    color:var(--text-main); text-decoration:none;
+  }
+  .server-row .url:hover{ color:var(--accent); text-decoration:underline; }
+  .server-row .count{ color:var(--text-dim); flex-shrink:0; }
+
+  .leaflet-popup-content-wrapper{
+    background:var(--bg-panel); color:var(--text-main);
+    border:1px solid var(--line); font-family:'JetBrains Mono',monospace; font-size:12px;
+  }
+  .leaflet-popup-tip{ background:var(--bg-panel); }
+
+  .cluster-label{
+    background:transparent !important; border:none !important; box-shadow:none !important;
+    color:#0d1720 !important; font-family:'JetBrains Mono',monospace; font-weight:600; font-size:11px;
+  }
+
+  /* Petite notification discrète (ex : géolocalisation indisponible) */
+  .toast{
+    position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+    z-index:2500; max-width:min(90vw, 420px);
+    background:rgba(22,31,43,0.96); color:var(--text-main);
+    border:1px solid var(--warn); border-radius:10px;
+    padding:10px 16px; font-size:13px; text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  /* Zoom Leaflet déplacé en bas à droite */
+  .leaflet-bottom.leaflet-right .leaflet-control-zoom{
+    margin-right:16px; margin-bottom:16px;
+    border:1px solid var(--line);
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+</style>
+
+</head>
+<body>
+{% set header_large = true %}
+{% include "partials/header.html" %}
+<div id="map"></div>
+
+<div class="search-panel">
+  <div class="row">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input id="search-input" type="text" placeholder="{{ _('Rechercher un lieu, une adresse…') }}">
+  </div>
+  <div id="search-results"></div>
+</div>
+
+<div class="locate-btn" id="locate-btn" title="{{ _('Centrer sur ma position') }}">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="3"/>
+    <line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/>
+    <line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
+  </svg>
+</div>
+
+<div class="servers-panel">
+  <div id="servers-list"><div class="empty">{{ _("Aucun point à l'écran") }}</div></div>
+</div>
+
+<div class="status-panel">
+  <div><span class="dot"></span><span class="n" id="status-count">–</span> <span id="status-count-label">{{ _('points chargés à l\'écran') }}</span></div>
+  <div id="status-total">–</div>
+</div>
+
+<script>
+// Chaînes traduites, injectées côté serveur (Jinja) pour être réutilisées
+// dans le JavaScript ci-dessous sans dupliquer les traductions. {n}/{id}
+// sont remplacés côté JS via String.replace une fois la valeur connue.
+// (on n'utilise pas la syntaxe %(n)s de gettext : Flask-Babel applique
+// systématiquement `chaîne % variables`, même sans argument fourni, ce qui
+// lève un KeyError dès que la chaîne source contient un %(...)s.)
+const I18N = {
+  yourPosition: {{ _('Votre position') | tojson }},
+  noResults: {{ _('Aucun résultat') | tojson }},
+  searchUnavailable: {{ _('Recherche indisponible') | tojson }},
+  noPointOnScreen: {{ _("Aucun point à l'écran") | tojson }},
+  totalInDb: {{ _('total en base : {n}') | tojson }},
+  popupCard: {{ _('carte n°{id}') | tojson }},
+  popupLat: {{ _('lat') | tojson }},
+  popupLon: {{ _('lon') | tojson }},
+  popupServer: {{ _('serveur') | tojson }},
+  geoInsecureContext: {{ _('Géolocalisation indisponible : cette page doit être servie en HTTPS (ou via localhost).') | tojson }},
+  geoPermissionDenied: {{ _('Géolocalisation refusée par le navigateur.') | tojson }},
+  geoUnavailable: {{ _('Position indisponible pour le moment.') | tojson }},
+  geoTimeout: {{ _('Délai de géolocalisation dépassé.') | tojson }},
+};
+
+const DEFAULT_LAT = {{ default_lat }};
+const DEFAULT_LON = {{ default_lon }};
+const DEFAULT_ZOOM = {{ default_zoom }};
+const CLUSTER_ZOOM_THRESHOLD = {{ cluster_zoom_threshold }};
+
+const map = L.map('map', { zoomControl: false, preferCanvas: true })
+  .setView([DEFAULT_LAT, DEFAULT_LON], DEFAULT_ZOOM);
+
+// Flèches d'agrandissement/rétrécissement en bas à droite (plutôt que le
+// coin par défaut en haut à gauche de Leaflet).
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+
+// Rendu Canvas (pas SVG) : bien plus léger quand il y a beaucoup de marqueurs.
+const pointsLayer = L.layerGroup().addTo(map);
+const userMarker = { ref: null };
+
+// server_url -> { name, color } — alimenté par /api/status, utilisé pour
+// afficher un nom lisible (et un lien) dans la liste des serveurs affichés.
+const serverInfo = new Map();
+let lastServerCounts = new Map();
+
+// --- Localisation de l'utilisateur au chargement ---------------------------
+function showToast(message) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 6000);
+}
+
+function geoErrorMessage(error) {
+  // GeolocationPositionError.code : 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+  if (error.code === 1) return I18N.geoPermissionDenied;
+  if (error.code === 3) return I18N.geoTimeout;
+  return I18N.geoUnavailable;
+}
+
+function tryGeolocate(onSuccess) {
+  if (!window.isSecureContext) {
+    // Les navigateurs bloquent l'API de géolocalisation hors HTTPS/localhost :
+    // pas la peine d'appeler getCurrentPosition, ça échouera de toute façon.
+    console.warn('Géolocalisation indisponible : contexte non sécurisé (HTTPS requis).');
+    showToast(I18N.geoInsecureContext);
+    return;
+  }
+  if (!navigator.geolocation) {
+    showToast(I18N.geoUnavailable);
+    return;
+  }
+  if (window.self !== window.top) {
+    // Dans une iframe, la géolocalisation est bloquée par défaut sauf si le
+    // parent ajoute explicitement allow="geolocation" sur la balise <iframe>.
+    console.warn("Géolocalisation : la page semble chargée dans une iframe (window.self !== window.top). Vérifiez l'attribut allow=\"geolocation\" sur l'<iframe> parente.");
+  }
+  const diag = () => console.warn(
+    'Diagnostic géolocalisation — protocole:', location.protocol,
+    '| isSecureContext:', window.isSecureContext,
+    '| dans une iframe:', window.self !== window.top,
+    '| userAgent:', navigator.userAgent
+  );
+  const runGetCurrentPosition = () => {
+    navigator.geolocation.getCurrentPosition(
+      pos => onSuccess(pos.coords.latitude, pos.coords.longitude),
+      error => {
+        console.warn('Géolocalisation refusée/indisponible :', error.code, error.message);
+        diag();
+        showToast(geoErrorMessage(error));
+      },
+      { enableHighAccuracy: false, timeout: 6000 }
+    );
+  };
+  // La Permissions API donne parfois un diagnostic plus fin (bloqué par une
+  // politique du site/du navigateur vs. jamais demandé vs. déjà refusé),
+  // mais reste facultative selon les navigateurs.
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: 'geolocation' })
+      .then(status => {
+        console.warn('Géolocalisation — état de la permission :', status.state);
+        runGetCurrentPosition();
+      })
+      .catch(runGetCurrentPosition);
+  } else {
+    runGetCurrentPosition();
+  }
+}
+
+tryGeolocate((lat, lon) => {
+  map.setView([lat, lon], 13);
+  placeUserMarker(lat, lon);
+});
+
+function placeUserMarker(lat, lon) {
+  if (userMarker.ref) map.removeLayer(userMarker.ref);
+  userMarker.ref = L.circleMarker([lat, lon], {
+    radius: 8, color: '#39d6c8', weight: 2, fillColor: '#39d6c8', fillOpacity: 0.35
+  }).addTo(map).bindPopup(I18N.yourPosition);
+}
+
+document.getElementById('locate-btn').addEventListener('click', () => {
+  tryGeolocate((lat, lon) => {
+    map.setView([lat, lon], 14);
+    placeUserMarker(lat, lon);
+  });
+});
+
+// --- Chargement dynamique des points GPS selon la vue courante --------------
+let fetchToken = 0;
+
+function refreshPoints() {
+  const bounds = map.getBounds();
+  const zoom = map.getZoom();
+  const bbox = [
+    bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()
+  ].join(',');
+
+  const myToken = ++fetchToken;
+  fetch(`/api/points?bbox=${encodeURIComponent(bbox)}&zoom=${zoom}`)
+    .then(r => r.json())
+    .then(res => {
+      if (myToken !== fetchToken) return; // une requête plus récente est déjà partie
+      renderPoints(res);
+    })
+    .catch(() => { /* on ignore les échecs ponctuels, la prochaine navigation réessaiera */ });
+}
+
+function renderPoints(res) {
+  pointsLayer.clearLayers();
+  const isClusters = res.type === 'clusters';
+  const serverCounts = new Map(); // server_url -> { color, count }
+
+  res.data.forEach(item => {
+    const color = item.color || '#39d6c8';
+
+    const prev = serverCounts.get(item.server_url);
+    const addedCount = isClusters ? item.count : 1;
+    if (prev) {
+      prev.count += addedCount;
+    } else {
+      serverCounts.set(item.server_url, { color, count: addedCount });
+    }
+
+    if (isClusters) {
+      const radius = Math.min(28, 6 + Math.sqrt(item.count) * 2);
+      L.circleMarker([item.lat, item.lon], {
+        radius,
+        color,
+        weight: 1,
+        fillColor: color,
+        fillOpacity: 0.55
+      })
+      .bindTooltip(String(item.count), { permanent: true, direction: 'center', className: 'cluster-label' })
+      .addTo(pointsLayer);
+    } else {
+      const cardLine = item.external_id
+        ? `${I18N.popupCard.replace('{id}', item.external_id)}<br>`
+        : '';
+      L.circleMarker([item.lat, item.lon], {
+        radius: 4,
+        color,
+        weight: 1,
+        fillColor: color,
+        fillOpacity: 0.8
+      })
+      .bindPopup(
+        `${cardLine}${I18N.popupLat}: ${item.lat.toFixed(5)}<br>${I18N.popupLon}: ${item.lon.toFixed(5)}<br>${I18N.popupServer}: ${item.server_url}`
+      )
+      .addTo(pointsLayer);
+    }
+  });
+
+  document.getElementById('status-count').textContent = res.data.length;
+  lastServerCounts = serverCounts;
+  renderServersList(serverCounts);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function renderServersList(serverCounts) {
+  const container = document.getElementById('servers-list');
+  container.innerHTML = '';
+
+  if (serverCounts.size === 0) {
+    container.innerHTML = `<div class="empty">${escapeHtml(I18N.noPointOnScreen)}</div>`;
+    return;
+  }
+
+  // Tri par nombre de points décroissant, pour voir en premier les serveurs
+  // les plus représentés dans la vue courante.
+  const entries = Array.from(serverCounts.entries())
+    .sort((a, b) => b[1].count - a[1].count);
+
+  entries.forEach(([serverUrl, info]) => {
+    const known = serverInfo.get(serverUrl);
+    const displayName = escapeHtml((known && known.name) || serverUrl);
+    const safeUrl = escapeHtml(serverUrl);
+    const color = (known && known.color) || info.color;
+
+    const row = document.createElement('div');
+    row.className = 'server-row';
+    row.innerHTML = `
+      <span class="swatch" style="background:${color}; color:${color};"></span>
+      <a class="url" href="${safeUrl}/map/" target="_blank" rel="noopener noreferrer" title="${safeUrl}">${displayName}</a>
+      <span class="count">${info.count}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+map.on('moveend zoomend', debounce(refreshPoints, 300));
+refreshStatus();
+refreshPoints();
+
+function debounce(fn, delay) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
+// --- Statistiques globales ---------------------------------------------------
+function refreshStatus() {
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(res => {
+      document.getElementById('status-total').textContent =
+        I18N.totalInDb.replace('{n}', res.total_points);
+
+      serverInfo.clear();
+      (res.servers || []).forEach(s => {
+        serverInfo.set(s.server_url, { name: s.name || s.server_url, color: s.color });
+      });
+      // Les noms/couleurs viennent d'arriver (ou d'être mis à jour) : on
+      // rafraîchit l'affichage de la liste sans attendre un déplacement de carte.
+      renderServersList(lastServerCounts);
+    })
+    .catch(() => {});
+}
+setInterval(refreshStatus, 30000);
+
+// --- Recherche (proxy Nominatim côté serveur) --------------------------------
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+
+searchInput.addEventListener('input', debounce(() => {
+  const q = searchInput.value.trim();
+  searchResults.innerHTML = '';
+  if (q.length < 3) return;
+
+  fetch(`/api/search?q=${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(results => {
+      searchResults.innerHTML = '';
+      if (!Array.isArray(results) || results.length === 0) {
+        searchResults.innerHTML = `<div>${escapeHtml(I18N.noResults)}</div>`;
+        return;
+      }
+      results.forEach(r => {
+        const div = document.createElement('div');
+        div.textContent = r.display_name;
+        div.addEventListener('click', () => {
+          map.setView([parseFloat(r.lat), parseFloat(r.lon)], 14);
+          searchResults.innerHTML = '';
+          searchInput.value = r.display_name;
+        });
+        searchResults.appendChild(div);
+      });
+    })
+    .catch(() => {
+      searchResults.innerHTML = `<div>${escapeHtml(I18N.searchUnavailable)}</div>`;
+    });
+}, 400));
+</script>
+</body>
+</html>

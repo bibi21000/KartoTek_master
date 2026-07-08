@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{{ url_root }}</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>{{ url_root }}info/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+{%- if contact_enabled %}
+  <url>
+    <loc>{{ url_root }}contact/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+{%- endif %}
+{%- for server in servers %}
+  <url>
+    <loc>{{ server.url }}/map/</loc>
+{%- if server.last_sync %}
+    <lastmod>{{ server.last_sync }}</lastmod>
+{%- endif %}
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+{%- endfor %}
+</urlset>

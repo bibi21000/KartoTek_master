@@ -1,0 +1,69 @@
+{# Bandeau logo, à inclure juste après <body> sur toutes les pages :   #}
+{# {% include "partials/header.html" %}                                #}
+{# Sur la page d'accueil (la carte), on agrandit le logo en passant :  #}
+{# {% set header_large = true %}{% include "partials/header.html" %}   #}
+{#                                                                     #}
+{# Positionné en overlay fixe et centré en haut : fonctionne aussi     #}
+{# bien par-dessus la carte plein écran (templates/index.html) que     #}
+{# par-dessus une page de contenu classique (base.html). Les couleurs  #}
+{# sont codées en dur (et non via les variables --bg-panel etc. du     #}
+{# thème de la carte) pour que ce partiel reste autonome, quel que     #}
+{# soit le document dans lequel il est inclus. Fond crème choisi pour  #}
+{# correspondre au logo (texte brun/rouille, fond transparent) : un    #}
+{# fond sombre le rendrait illisible.                                  #}
+
+<header class="site-header{% if header_large %} site-header--home{% endif %}">
+  <a href="{{ url_for('info.index') }}" class="site-header__logo-link">
+    <img
+      src="{{ url_for('static', filename='img/kartotek-logo.png') }}"
+      alt="{{ _('KartoTek – Vintage postcard manager') }}"
+      class="site-header__logo"
+    >
+  </a>
+  <nav class="site-header__lang" aria-label="{{ _('Langue') }}">
+    <a href="{{ request.path }}?lang=fr" class="{% if get_locale() == 'fr' %}is-active{% endif %}">FR</a>
+    <a href="{{ request.path }}?lang=en" class="{% if get_locale() == 'en' %}is-active{% endif %}">EN</a>
+  </nav>
+</header>
+
+<style>
+  .site-header{
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000; /* au-dessus des panneaux flottants de la carte (1000) */
+    display: flex;
+    justify-content: center;
+    background: rgba(245, 237, 224, 0.96); /* crème, ton du badge du logo */
+    border: 1px solid rgba(139, 111, 78, 0.3);
+    border-radius: 12px;
+    padding: 6px 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+  }
+  .site-header__logo-link{
+    display: inline-block;
+    line-height: 0; /* évite un espace fantôme sous l'image */
+  }
+  .site-header__logo{
+    height: 40px;
+    width: auto;
+    display: block;
+  }
+  /* Logo agrandi quand {% set header_large = true %} est défini avant l'include */
+  .site-header--home .site-header__logo{
+    height: 64px;
+  }
+  .site-header__lang{
+    display: flex; align-items: center; gap: 6px;
+    margin-left: 14px; padding-left: 14px;
+    border-left: 1px solid rgba(139, 111, 78, 0.3);
+    font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600;
+  }
+  .site-header__lang a{
+    color: #8a6b4d; text-decoration: none; padding: 2px 4px; border-radius: 4px;
+  }
+  .site-header__lang a.is-active{ color: #5c3a21; background: rgba(139, 111, 78, 0.15); }
+  .site-header__lang a:hover{ color: #5c3a21; }
+</style>

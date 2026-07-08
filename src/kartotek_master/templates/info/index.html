@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="info-page">
+  <h1>{{ page_title }}</h1>
+
+  <p>
+    <!-- TODO : à compléter — présentation du site, de la collection, etc. -->
+  </p>
+
+  <p>
+    <a href="{{ url_for('contact.index') }}">{{ _('Me contacter') }}</a>
+  </p>
+</article>
+{% endblock %}

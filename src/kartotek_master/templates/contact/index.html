@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{{ page_title }}</h1>
+
+{% if errors._global %}
+<div class="flash flash-error">{{ errors._global }}</div>
+{% endif %}
+
+<form method="post" novalidate>
+  {# Honeypot anti-spam : caché visuellement, doit rester vide #}
+  <p style="position:absolute; left:-9999px; top:auto;">
+    <label for="website">{{ _('Laissez ce champ vide') }}</label>
+    <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+  </p>
+
+  <p>
+    <label for="name">{{ _('Nom') }}</label>
+    <input id="name" name="name" type="text" value="{{ values.name }}" required>
+    {% if errors.name %}<span class="field-error">{{ errors.name }}</span>{% endif %}
+  </p>
+
+  <p>
+    <label for="email">{{ _('Email') }}</label>
+    <input id="email" name="email" type="email" value="{{ values.email }}" required>
+    {% if errors.email %}<span class="field-error">{{ errors.email }}</span>{% endif %}
+  </p>
+
+  <p>
+    <label for="subject">{{ _('Sujet') }}</label>
+    <input id="subject" name="subject" type="text" value="{{ values.subject }}">
+  </p>
+
+  <p>
+    <label for="message">{{ _('Message') }}</label>
+    <textarea id="message" name="message" rows="6" required>{{ values.message }}</textarea>
+    {% if errors.message %}<span class="field-error">{{ errors.message }}</span>{% endif %}
+  </p>
+
+  <button type="submit">{{ _('Envoyer') }}</button>
+</form>
+{% endblock %}

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+
+  <!-- Fond -->
+  <rect width="500" height="500" fill="#f5ede0" rx="60"/>
+
+  <!-- Carte arrière (inclinée à gauche) -->
+  <g transform="translate(250,250) rotate(-12)">
+    <rect x="-110" y="-75" width="220" height="150" rx="8" fill="#d4bfa0" stroke="#b09070" stroke-width="2"/>
+    <line x1="0" y1="-68" x2="0" y2="68" stroke="#b09070" stroke-width="1.5"/>
+    <rect x="12" y="-65" width="40" height="52" rx="4" fill="#8b5e3c" opacity="0.5"/>
+    <rect x="16" y="-61" width="32" height="42" rx="2" fill="#a0724e" opacity="0.4"/>
+  </g>
+
+  <!-- Carte avant (inclinée à droite) -->
+  <g transform="translate(250,240) rotate(8)">
+    <rect x="-110" y="-75" width="220" height="150" rx="8" fill="#f0e6d0" stroke="#c8a880" stroke-width="2"/>
+    <!-- Zone image gauche -->
+    <rect x="-105" y="-70" width="100" height="140" rx="4" fill="#ddd0b8"/>
+    <!-- ciel simplifié -->
+    <rect x="-105" y="-70" width="100" height="55" rx="4" fill="#c8d8e8"/>
+    <!-- sol -->
+    <rect x="-105" y="-15" width="100" height="85" rx="0" fill="#c8b898"/>
+    <!-- clip arrondi bas -->
+    <rect x="-105" y="66" width="100" height="10" rx="0" fill="#ddd0b8"/>
+    <!-- Séparateur vertical -->
+    <line x1="0" y1="-70" x2="0" y2="70" stroke="#c8a880" stroke-width="1.5"/>
+    <!-- Timbre -->
+    <rect x="62" y="-65" width="40" height="50" rx="4" fill="#7a4a2a" opacity="0.85"/>
+    <rect x="66" y="-61" width="32" height="40" rx="2" fill="#9a6a4a" opacity="0.7"/>
+    <!-- Tampon postal -->
+    <circle cx="30" cy="-35" r="22" fill="none" stroke="#7a5c4a" stroke-width="2" opacity="0.5"/>
+    <line x1="8" y1="-35" x2="52" y2="-35" stroke="#7a5c4a" stroke-width="1.2" opacity="0.4"/>
+    <!-- Lignes adresse -->
+    <line x1="5" y1="5"  x2="95" y2="5"  stroke="#c8a880" stroke-width="1.5" opacity="0.8"/>
+    <line x1="5" y1="20" x2="85" y2="20" stroke="#c8a880" stroke-width="1.5" opacity="0.8"/>
+    <line x1="5" y1="35" x2="75" y2="35" stroke="#c8a880" stroke-width="1.5" opacity="0.8"/>
+    <line x1="5" y1="50" x2="80" y2="50" stroke="#c8a880" stroke-width="1.5" opacity="0.8"/>
+  </g>
+
+</svg>
