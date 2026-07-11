@@ -25,15 +25,19 @@ import logging
 import logging.handlers
 import os
 import signal
+from datetime import datetime
 from pathlib import Path
 
 import requests
+from babel.dates import format_datetime as babel_format_datetime
 from flask import Flask, jsonify, render_template, request, session
 from flask_babel import Babel, get_locale
 
 from . import db
 from .colors import color_for_server
 from .contact import bp as contact_bp
+from .geo import haversine_km
+from .geoapi import bp as geoapi_bp
 from .info import bp as info_bp
 from .poller import Poller
 from .seo import bp as seo_bp
@@ -129,6 +133,24 @@ def create_app():
     Babel(app, locale_selector=_select_locale)
     app.jinja_env.globals["get_locale"] = lambda: str(get_locale())
 
+    @app.template_filter("localdatetime")
+    def localdatetime_filter(value, fmt="medium"):
+        """
+        Formate une date/heure stockée en base (chaîne ISO 8601, ex.
+        "2026-07-09T06:31:29.482123+00:00") selon la langue courante.
+        Renvoie None si la valeur est vide/non parseable, à gérer côté
+        template (ex. `{{ v|localdatetime or '—' }}`). Les dates sont
+        stockées en UTC ; seul le format change avec la langue, pas le
+        fuseau horaire (on ne connaît pas celui de l'utilisateur).
+        """
+        if not value:
+            return None
+        try:
+            dt = datetime.fromisoformat(value)
+        except (TypeError, ValueError):
+            return value
+        return babel_format_datetime(dt, format=fmt, locale=str(get_locale()))
+
     @app.before_request
     def _apply_lang_override():
         lang = request.args.get("lang")
@@ -147,17 +169,26 @@ def create_app():
         app.config["SMTP_PASSWORD"] = contact_cfg.get("smtp_password", fallback="")
         app.config["SMTP_SECURITY"] = contact_cfg.get("smtp_security", fallback="starttls")
 
+    map_cfg = config["map"]
+    cluster_zoom_threshold = map_cfg.getint("cluster_zoom_threshold", fallback=14)
+    max_points = map_cfg.getint("max_points_returned", fallback=5000)
+    # Exposés via app.config pour que le blueprint geoapi (qui porte
+    # désormais /api/v1/points, en plus de bounds/nearby/next-update)
+    # puisse les lire avec current_app.config sans dépendre de la closure
+    # de create_app().
+    app.config["CLUSTER_ZOOM_THRESHOLD"] = cluster_zoom_threshold
+    app.config["MAX_POINTS_RETURNED"] = max_points
+
     app.register_blueprint(info_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(status_bp)
+    # /api/v1/points, /api/v1/bounds, /api/v1/nearby, /api/v1/next-update
+    # — endpoints géo, servis depuis le cache local (voir kartotek_master.geoapi).
+    app.register_blueprint(geoapi_bp)
     # Sans préfixe : les fichiers de vérification de propriété (Google
     # Search Console, Bing...) doivent être servis exactement à la racine
     # du domaine, tout comme /sitemap.xml et /robots.txt.
     app.register_blueprint(seo_bp)
-
-    map_cfg = config["map"]
-    cluster_zoom_threshold = map_cfg.getint("cluster_zoom_threshold", fallback=14)
-    max_points = map_cfg.getint("max_points_returned", fallback=5000)
 
     # --------------------------------------------------------------- routes
     @app.route("/")
@@ -170,43 +201,7 @@ def create_app():
             cluster_zoom_threshold=cluster_zoom_threshold,
         )
 
-    @app.route("/api/points")
-    def api_points():
-        """
-        Renvoie les points GPS visibles dans la bbox demandée.
-        - zoom >= cluster_zoom_threshold : points bruts (limités).
-        - sinon : clusters agrégés en SQL (évite de transférer des dizaines
-          de milliers de marqueurs au navigateur).
 
-        Paramètres attendus : bbox=minLon,minLat,maxLon,maxLat & zoom=<int>
-        """
-        bbox = request.args.get("bbox", "")
-        try:
-            min_lon, min_lat, max_lon, max_lat = (float(v) for v in bbox.split(","))
-        except (ValueError, AttributeError):
-            return jsonify({"error": "paramètre bbox invalide, attendu: minLon,minLat,maxLon,maxLat"}), 400
-
-        try:
-            zoom = int(request.args.get("zoom", 6))
-        except ValueError:
-            zoom = 6
-
-        limit = min(max_points, int(request.args.get("limit", max_points)))
-
-        if zoom >= cluster_zoom_threshold:
-            points = db.query_points_raw(min_lon, min_lat, max_lon, max_lat, limit)
-            for p in points:
-                p["color"] = color_for_server(p["server_url"])
-            return jsonify({"type": "points", "zoom": zoom, "data": points})
-
-        # Plus le zoom est faible, plus les cellules de regroupement sont grandes
-        precision = max(1, min(5, zoom // 2))
-        clusters = db.query_points_clustered(min_lon, min_lat, max_lon, max_lat, precision, limit)
-        for c in clusters:
-            c["color"] = color_for_server(c["server_url"])
-        return jsonify({"type": "clusters", "zoom": zoom, "data": clusters})
-
-    @app.route("/api/status")
     def api_status():
         servers = db.list_servers_state()
         for s in servers:
@@ -240,6 +235,60 @@ def create_app():
         except requests.RequestException as exc:
             logger.warning("Recherche Nominatim échouée : %s", exc)
             return jsonify({"error": "recherche indisponible"}), 502
+
+    @app.route("/api/v1/servers")
+    def api_v1_servers():
+        """
+        Liste des serveurs connus, triée par proximité avec la position GPS
+        du client (query params `lat`/`lon`), en utilisant la bounding box
+        de chaque serveur (récupérée périodiquement via /api/v1/bounds par
+        le poller — voir kartotek_master.poller). La distance est calculée
+        jusqu'au centre de cette bounding box.
+
+        Les serveurs sans bounds connues (pas encore récupérées, ou serveur
+        injoignable) sont inclus mais placés en fin de liste, sans
+        `distance_km`. Sans lat/lon fournis, la liste est simplement triée
+        par nom.
+        """
+        try:
+            user_lat = float(request.args["lat"])
+            user_lon = float(request.args["lon"])
+            has_position = True
+        except (KeyError, TypeError, ValueError):
+            has_position = False
+            user_lat = user_lon = None
+
+        results = []
+        for s in db.list_servers_state():
+            entry = {
+                "name": s.get("name") or s["server_url"],
+                "url": s["server_url"],
+                "distance_km": None,
+            }
+            min_lat = s.get("bounds_min_lat")
+            max_lat = s.get("bounds_max_lat")
+            min_lon = s.get("bounds_min_lon")
+            max_lon = s.get("bounds_max_lon")
+            if None not in (min_lat, max_lat, min_lon, max_lon):
+                entry["bounds"] = {
+                    "min_lat": min_lat, "max_lat": max_lat,
+                    "min_lon": min_lon, "max_lon": max_lon,
+                }
+                if has_position:
+                    center_lat = (min_lat + max_lat) / 2
+                    center_lon = (min_lon + max_lon) / 2
+                    entry["distance_km"] = round(
+                        haversine_km(user_lat, user_lon, center_lat, center_lon), 1
+                    )
+            results.append(entry)
+
+        if has_position:
+            # Les serveurs sans distance connue (pas de bounds) vont en fin de liste.
+            results.sort(key=lambda e: e["distance_km"] if e["distance_km"] is not None else float("inf"))
+        else:
+            results.sort(key=lambda e: e["name"].lower())
+
+        return jsonify({"servers": results})
 
     @app.route("/health")
     def health():

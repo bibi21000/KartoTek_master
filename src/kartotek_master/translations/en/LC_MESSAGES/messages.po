@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-08 07:16+0000\n"
+"POT-Creation-Date: 2026-07-10 08:31+0000\n"
 "PO-Revision-Date: 2026-07-06 22:07+0000\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -198,27 +198,44 @@ msgid "Dernière vérification"
 msgstr "Last check"
 
 #: src/kartotek_master/templates/status/index.html:44
-msgid "Dernière synchro"
-msgstr "Last sync"
+#, fuzzy
+msgid "MAJ points"
+msgstr "Points updated"
 
 #: src/kartotek_master/templates/status/index.html:45
 msgid "Points"
 msgstr "Points"
 
 #: src/kartotek_master/templates/status/index.html:46
+#, fuzzy
+msgid "Étendue GPS"
+msgstr "GPS extent"
+
+#: src/kartotek_master/templates/status/index.html:47
+#, fuzzy
+msgid "Maj Étendue GPS"
+msgstr "GPS extent updated"
+
+#: src/kartotek_master/templates/status/index.html:48
 msgid "Dernière erreur"
 msgstr "Last error"
 
-#: src/kartotek_master/templates/status/index.html:54
+#: src/kartotek_master/templates/status/index.html:56
 #, fuzzy
 msgid "Erreur"
 msgstr "Error"
 
-#: src/kartotek_master/templates/status/index.html:56
+#: src/kartotek_master/templates/status/index.html:58
 msgid "OK"
 msgstr "OK"
 
-#: src/kartotek_master/templates/status/index.html:58
+#: src/kartotek_master/templates/status/index.html:60
 msgid "Jamais synchronisé"
 msgstr "Never synchronized"
+
+#~ msgid "Dernière synchro"
+#~ msgstr "Last sync"
+
+#~ msgid "Maj bounds"
+#~ msgstr "Bounds updated"
 

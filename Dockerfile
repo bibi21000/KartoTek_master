@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # base python image for custom image
-FROM python:3.12-alpine
+FROM python:3.14-alpine
 
 ENV PIP_NO_CACHE_DIR=false
 ENV KARTOTEK_MASTER_CONF=/app/conf/config.conf
@@ -19,7 +19,7 @@ COPY docker/servers.json /app/conf/
 WORKDIR /app
 RUN pip3 install .[prod]
 
-EXPOSE 8001
+EXPOSE 8003
 
 VOLUME ["/data"]
 

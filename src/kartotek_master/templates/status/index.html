@@ -41,8 +41,10 @@
       <th>{{ _('URL') }}</th>
       <th>dbid</th>
       <th>{{ _('Dernière vérification') }}</th>
-      <th>{{ _('Dernière synchro') }}</th>
+      <th>{{ _('MAJ points') }}</th>
       <th>{{ _('Points') }}</th>
+      <th>{{ _('Étendue GPS') }}</th>
+      <th>{{ _('Maj Étendue GPS') }}</th>
       <th>{{ _('Dernière erreur') }}</th>
     </tr>
   </thead>
@@ -61,13 +63,48 @@
       <td>{{ server.name or '—' }}</td>
       <td>{{ server.server_url }}</td>
       <td>{{ server.dbid or '—' }}</td>
-      <td>{{ server.last_check or '—' }}</td>
-      <td>{{ server.last_sync or '—' }}</td>
+      <td>
+        {% if server.last_check %}
+          <time class="local-dt" datetime="{{ server.last_check }}">{{ server.last_check|localdatetime }} UTC</time>
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if server.last_sync %}
+          <time class="local-dt" datetime="{{ server.last_sync }}">{{ server.last_sync|localdatetime }} UTC</time>
+        {% else %}—{% endif %}
+      </td>
       <td>{{ server.points_count }}</td>
+      <td>
+        {% if server.bounds_min_lat is not none %}
+          {{ "%.4f"|format(server.bounds_min_lat) }}, {{ "%.4f"|format(server.bounds_min_lon) }}
+          &rarr;
+          {{ "%.4f"|format(server.bounds_max_lat) }}, {{ "%.4f"|format(server.bounds_max_lon) }}
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td>
+        {% if server.bounds_updated_at %}
+          <time class="local-dt" datetime="{{ server.bounds_updated_at }}">{{ server.bounds_updated_at|localdatetime }} UTC</time>
+        {% else %}—{% endif %}
+      </td>
       <td>{% if server.last_error %}<span class="status-error-msg">{{ server.last_error }}</span>{% else %}—{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<script>
+// Conversion côté navigateur vers le fuseau horaire local : le serveur ne
+// connaît que l'heure UTC (repli affiché si JS est désactivé), seul le
+// navigateur sait dans quel fuseau se trouve le visiteur.
+document.querySelectorAll('time.local-dt[datetime]').forEach(el => {
+  const iso = el.getAttribute('datetime');
+  if (!iso) return;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return;
+  el.textContent = d.toLocaleString('{{ get_locale() }}', { dateStyle: 'medium', timeStyle: 'medium' });
+});
+</script>
 {% endif %}
 {% endblock %}

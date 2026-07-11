@@ -72,13 +72,32 @@ def init_db():
                     last_check   TEXT,
                     last_sync    TEXT,
                     points_count INTEGER NOT NULL DEFAULT 0,
-                    last_error   TEXT
+                    last_error   TEXT,
+                    bounds_min_lat   REAL,
+                    bounds_max_lat   REAL,
+                    bounds_min_lon   REAL,
+                    bounds_max_lon   REAL,
+                    bounds_updated_at TEXT
                 );
                 """
             )
             # Migration douce : si la base existait déjà avant l'ajout de `name`.
             try:
                 cur.execute("ALTER TABLE servers_state ADD COLUMN name TEXT;")
+            except sqlite3.OperationalError:
+                pass  # la colonne existe déjà
+            # Migration douce : idem pour les colonnes de bounding box
+            # (étendue géographique de la collection de chaque serveur,
+            # récupérée via GET /api/v1/bounds).
+            for column in (
+                "bounds_min_lat", "bounds_max_lat", "bounds_min_lon", "bounds_max_lon",
+            ):
+                try:
+                    cur.execute(f"ALTER TABLE servers_state ADD COLUMN {column} REAL;")
+                except sqlite3.OperationalError:
+                    pass  # la colonne existe déjà
+            try:
+                cur.execute("ALTER TABLE servers_state ADD COLUMN bounds_updated_at TEXT;")
             except sqlite3.OperationalError:
                 pass  # la colonne existe déjà
             cur.execute(
@@ -132,7 +151,14 @@ def touch_server_check(server_url: str, name: str = None, error: str = None):
         )
 
 
-def update_server_dbid(server_url: str, dbid: str, points_added: int, name: str = None):
+def update_server_dbid(server_url: str, dbid: str, points_count: int, name: str = None):
+    """
+    points_count : nombre de points insérés lors de CETTE synchronisation
+    (remplace la valeur précédente, ne s'y ajoute pas — chaque
+    resynchronisation complète purge d'abord les anciens points du
+    serveur, donc points_count doit refléter l'état courant de la table,
+    pas un cumul depuis le début).
+    """
     now = datetime.now(timezone.utc).isoformat()
     with get_cursor(commit=True) as cur:
         cur.execute(
@@ -144,10 +170,36 @@ def update_server_dbid(server_url: str, dbid: str, points_added: int, name: str 
                 dbid = excluded.dbid,
                 last_check = excluded.last_check,
                 last_sync = excluded.last_sync,
-                points_count = servers_state.points_count + excluded.points_count,
+                points_count = excluded.points_count,
                 last_error = NULL
             """,
-            (server_url, name, dbid, now, now, points_added),
+            (server_url, name, dbid, now, now, points_count),
+        )
+
+
+def update_server_bounds(server_url: str, min_lat: float, max_lat: float, min_lon: float, max_lon: float):
+    """
+    Enregistre l'étendue géographique (bounding box) de la collection d'un
+    serveur, récupérée via GET /api/v1/bounds. Mis à jour à chaque cycle du
+    poller, indépendamment des changements de dbid.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO servers_state (
+                server_url, bounds_min_lat, bounds_max_lat,
+                bounds_min_lon, bounds_max_lon, bounds_updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(server_url) DO UPDATE SET
+                bounds_min_lat = excluded.bounds_min_lat,
+                bounds_max_lat = excluded.bounds_max_lat,
+                bounds_min_lon = excluded.bounds_min_lon,
+                bounds_max_lon = excluded.bounds_max_lon,
+                bounds_updated_at = excluded.bounds_updated_at
+            """,
+            (server_url, min_lat, max_lat, min_lon, max_lon, now),
         )
 
 
@@ -215,6 +267,53 @@ def query_points_raw(min_lon, min_lat, max_lon, max_lat, limit):
             """,
             (min_lat, max_lat, min_lon, max_lon, limit),
         )
+        return [dict(r) for r in cur.fetchall()]
+
+
+def list_known_server_urls():
+    """Ensemble des server_url connus (pour valider le paramètre `servers`
+    reçu par les endpoints /api/v1/bounds, /nearby et /next-update — on
+    n'interroge/n'expose jamais un serveur qui n'a pas été configuré dans
+    servers.json)."""
+    with get_cursor() as cur:
+        cur.execute("SELECT server_url FROM servers_state")
+        return {r["server_url"] for r in cur.fetchall()}
+
+
+def query_points_for_servers(servers, min_lat=None, max_lat=None, min_lon=None, max_lon=None, limit=None):
+    """
+    Points GPS (id, external_id, lat, lon, server_url) déjà synchronisés
+    en base par le poller, filtrés par une liste de server_url (aucun
+    filtre si `servers` est vide/None : tous les serveurs connus) et,
+    optionnellement, par une bounding box (pré-filtre bon marché avant un
+    calcul de distance haversine précis fait en Python par l'appelant).
+
+    Ne fait jamais d'appel réseau : c'est la base locale (déjà tenue à
+    jour par kartotek_master.poller) qui sert de cache pour
+    /api/v1/bounds, /api/v1/nearby et /api/v1/next-update, plutôt que de
+    réinterroger chaque serveur distant à chaque requête client.
+    """
+    clauses = []
+    params: list = []
+    if servers:
+        placeholders = ",".join("?" * len(servers))
+        clauses.append(f"server_url IN ({placeholders})")
+        params.extend(servers)
+    if min_lat is not None:
+        clauses.append("lat BETWEEN ? AND ?")
+        params.extend([min_lat, max_lat])
+    if min_lon is not None:
+        clauses.append("lon BETWEEN ? AND ?")
+        params.extend([min_lon, max_lon])
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    sql = f"SELECT id, external_id, lat, lon, server_url FROM gps_points {where}"
+    if limit:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    with get_cursor() as cur:
+        cur.execute(sql, params)
         return [dict(r) for r in cur.fetchall()]
 
 

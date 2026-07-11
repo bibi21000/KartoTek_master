@@ -6,17 +6,41 @@ Poller en arrière-plan.
 - Ensuite : se réveille toutes les `interval_minutes` pour revérifier.
 - Pour chaque serveur : GET /api/v1/dbid. Si la valeur diffère de celle
   connue en base, on retélécharge l'intégralité des cartes via
-  /api/v1/gps?start=&offset= en paginant :
+  /api/v1/gps en paginant :
 
       {
-        "count": 42,    # résultats dans cette page
-        "total": 150,   # cartes uniques totales (avec ou sans coordonnées)
-        "cards": [{"id": "1", "lat": 46.749, "lon": 5.620}, ...]
+        "count": 42,          # résultats dans cette page
+        "total": 150,         # cartes uniques totales (avec ou sans coordonnées)
+        "cards": [{"id": "1", "lat": 46.749, "lon": 5.620}, ...],
+        "next_after_id": 42   # curseur pour la page suivante, null si terminé
       }
+
+  Deux modes de pagination sont supportés :
+
+  - **Par curseur** (préféré) : GET ?after_id=<curseur>&offset=<page_size>,
+    en commençant par after_id=0, jusqu'à ce que `next_after_id` soit null.
+    Stable même si la base bouge pendant le poll (contrairement à
+    OFFSET/LIMIT, qui peut dupliquer ou sauter des lignes si le tri n'est
+    pas parfaitement déterministe).
+  - **Ancien mode** GET ?start=<n>&offset=<page_size> : toujours supporté
+    en repli automatique pour les serveurs qui ne renvoient pas encore
+    `next_after_id` dans leur réponse — détecté à la première page de
+    chaque synchronisation. À migrer côté serveur dès que possible : ce
+    mode reste théoriquement exposé au même risque de doublons/omissions
+    si la base évolue en cours de pagination (voir les logs de synthèse
+    en fin de synchronisation, qui signalent ces deux cas).
 
   Seules les cartes avec des coordonnées valides sont conservées. Les
   anciens points du serveur sont purgés avant réinsertion, pour éviter
   toute accumulation de doublons au fil des resynchronisations.
+- Quand le dbid change (en même temps que la resynchronisation des cartes) :
+  GET /api/v1/bounds pour connaître l'étendue géographique de la
+  collection de chaque serveur, utilisée pour trier /api/v1/servers par
+  proximité :
+
+      {"count": 42, "bounds": {"min_lat":.., "max_lat":.., "min_lon":.., "max_lon":..}}
+
+  `count` n'est volontairement pas exploité.
 - Toute erreur réseau sur un serveur est loguée et n'empêche pas de
   traiter les autres serveurs, ni les prochains cycles (robustesse).
 """
@@ -143,6 +167,47 @@ class Poller:
 
         return [], None
 
+    def _fetch_bounds(self, base_url):
+        """
+        Récupère l'étendue géographique (bounding box) de la collection
+        d'un serveur, via GET /api/v1/bounds :
+            {"count": ..., "bounds": {"min_lat":.., "max_lat":.., "min_lon":.., "max_lon":..}}
+        Appelée uniquement quand le dbid d'un serveur change (en même temps
+        que la resynchronisation des cartes) — pas à chaque cycle, les
+        bounds n'étant censées bouger qu'avec le contenu de la collection.
+        `count` n'est volontairement pas utilisé. Une erreur ici est
+        loguée mais n'interrompt jamais la synchronisation des cartes GPS
+        du serveur.
+        """
+        bounds_url = f"{base_url}/api/v1/bounds"
+        try:
+            resp = self._request_with_retry(bounds_url)
+        except requests.RequestException as exc:
+            logger.warning("Impossible de récupérer les bounds de %s : %s", base_url, exc)
+            return
+
+        try:
+            payload = resp.json()
+        except ValueError:
+            logger.warning("Réponse bounds non-JSON depuis %s", bounds_url)
+            return
+
+        bounds = payload.get("bounds") if isinstance(payload, dict) else None
+        if not isinstance(bounds, dict):
+            logger.warning("Réponse bounds invalide depuis %s : %r", bounds_url, payload)
+            return
+
+        try:
+            min_lat = float(bounds["min_lat"])
+            max_lat = float(bounds["max_lat"])
+            min_lon = float(bounds["min_lon"])
+            max_lon = float(bounds["max_lon"])
+        except (KeyError, TypeError, ValueError) as exc:
+            logger.warning("Champs bounds manquants/invalides depuis %s : %s", bounds_url, exc)
+            return
+
+        db.update_server_bounds(base_url, min_lat, max_lat, min_lon, max_lon)
+
     # ------------------------------------------------------------- workflow
     def _sync_server(self, base_url, name):
         dbid_url = f"{base_url}/api/v1/dbid"
@@ -167,6 +232,11 @@ class Poller:
             db.touch_server_check(base_url, name=name)
             return
 
+        # Uniquement quand le dbid change : les bounds sont censées ne
+        # bouger qu'avec le contenu de la collection, pas besoin de les
+        # réinterroger à chaque cycle si rien n'a changé côté serveur.
+        self._fetch_bounds(base_url)
+
         logger.info(
             "Changement détecté pour %s (%s -> %s), synchronisation des points GPS...",
             base_url, current_dbid, new_dbid,
@@ -181,15 +251,47 @@ class Poller:
 
     def _download_all_points(self, base_url):
         gps_url = f"{base_url}/api/v1/gps"
-        start = 0
+        cursor_after_id = 0
+        legacy_start = 0
+        use_cursor = None  # déterminé à la 1ere page, selon la présence de next_after_id
         total_inserted = 0
+        pages_fetched = 0
+        seen_ids = set()
+        duplicates_skipped = 0
+        cards_without_coords = 0
+        last_known_total = None
+        # Garde-fou : si `total`/`next_after_id` était mal renseigné par le
+        # serveur distant (jamais atteint alors que les pages continuent
+        # d'arriver), on évite une pagination infinie. Large marge au-delà
+        # de ce qu'on peut raisonnablement attendre, juste pour couper un
+        # cas pathologique.
+        max_pages = 20000
         while not self._stop_event.is_set():
-            try:
-                resp = self._request_with_retry(
-                    gps_url, params={"start": start, "offset": self.page_size}
+            pages_fetched += 1
+            if pages_fetched > max_pages:
+                logger.error(
+                    "%s : garde-fou de pagination atteint (%s pages), arrêt "
+                    "(vérifiez le champ 'total'/'next_after_id' de /api/v1/gps)",
+                    base_url, max_pages,
                 )
+                break
+
+            if use_cursor is False:
+                # Mode legacy déjà confirmé pour ce serveur (pas de
+                # next_after_id dans sa réponse) : on reste sur start/offset
+                # pour toute la synchronisation.
+                params = {"start": legacy_start, "offset": self.page_size}
+            else:
+                # Mode par défaut (pas encore déterminé, ou curseur déjà
+                # confirmé) : on envoie after_id. Un serveur pas encore
+                # migré ignore simplement ce paramètre inconnu et retombe
+                # sur son comportement start=0 par défaut — sans risque.
+                params = {"after_id": cursor_after_id, "offset": self.page_size}
+
+            try:
+                resp = self._request_with_retry(gps_url, params=params)
             except requests.RequestException as exc:
-                logger.error("Échec du téléchargement GPS depuis %s (start=%s) : %s", base_url, start, exc)
+                logger.error("Échec du téléchargement GPS depuis %s (%s) : %s", base_url, params, exc)
                 break
 
             try:
@@ -198,27 +300,116 @@ class Poller:
                 logger.error("Réponse GPS non-JSON depuis %s", gps_url)
                 break
 
+            if use_cursor is None:
+                use_cursor = isinstance(payload, dict) and "next_after_id" in payload
+                if use_cursor:
+                    logger.debug("%s : pagination par curseur (after_id) détectée", base_url)
+                else:
+                    logger.debug(
+                        "%s : 'next_after_id' absent de la réponse, repli sur "
+                        "l'ancien mode start/offset (à migrer côté serveur)",
+                        base_url,
+                    )
+
             cards, total = self._extract_cards(payload)
             if not cards:
                 break
+            if total is not None:
+                last_known_total = total
 
-            # Seules les cartes avec des coordonnées valides sont géolocalisables.
-            points = [
-                (card.get("id"), card["lat"], card["lon"])
-                for card in cards
-                if card.get("lat") is not None and card.get("lon") is not None
-            ]
+            # On déduplique par identifiant *avant* de filtrer sur les
+            # coordonnées : sinon une carte sans lat/lon qui reviendrait sur
+            # plusieurs pages ne serait jamais comptée comme doublon. Seules
+            # les cartes uniques avec coordonnées valides sont ensuite
+            # géolocalisables ; celles sans coordonnées sont légitimement
+            # ignorées (mais comptabilisées, pour distinguer ce cas d'une
+            # vraie perte de données).
+            points = []
+            for card in cards:
+                external_id = card.get("id")
+                if external_id is not None:
+                    if external_id in seen_ids:
+                        duplicates_skipped += 1
+                        continue
+                    seen_ids.add(external_id)
+                lat, lon = card.get("lat"), card.get("lon")
+                if lat is None or lon is None:
+                    cards_without_coords += 1
+                    continue
+                points.append((external_id, lat, lon))
+
             if points:
                 db.insert_points(base_url, points)
                 total_inserted += len(points)
 
-            start += len(cards)
+            if use_cursor:
+                next_after_id = payload.get("next_after_id")
+                if next_after_id is None:
+                    break
+                cursor_after_id = next_after_id
+            else:
+                legacy_start += len(cards)
+                if total is not None:
+                    # `total` fait foi : certains serveurs renvoient des
+                    # pages plus courtes que `offset` sans que ce soit la
+                    # dernière page (ex. count=466 alors que offset=500 et
+                    # total=601). S'arrêter dès qu'une page est "courte"
+                    # ferait perdre les entrées restantes ; on ne s'arrête
+                    # donc que lorsque le total annoncé est réellement atteint.
+                    if len(cards) < self.page_size:
+                        logger.debug(
+                            "%s : page à start=%s a renvoyé %s élément(s) (< offset=%s) "
+                            "mais total=%s non atteint (%s), on continue la pagination",
+                            base_url, legacy_start - len(cards), len(cards),
+                            self.page_size, total, legacy_start,
+                        )
+                    if legacy_start >= total:
+                        break
+                elif len(cards) < self.page_size:
+                    # Pas de `total` fiable (ancien format d'API) : on
+                    # s'arrête dès qu'une page renvoie moins d'éléments que
+                    # demandé.
+                    break
 
-            # On s'arrête dès qu'on a couvert le total annoncé par le
-            # serveur, ou (à défaut de `total` fiable) dès qu'une page
-            # renvoie moins de résultats que demandé.
-            if (total is not None and start >= total) or len(cards) < self.page_size:
-                break
+        mode_label = "curseur (after_id)" if use_cursor else "legacy (start/offset, à migrer côté serveur)"
+        if duplicates_skipped:
+            logger.warning(
+                "%s [mode %s] : %s carte(s) reçue(s) en double pendant la "
+                "pagination (même id renvoyé sur plusieurs pages), ignorées. "
+                "%s",
+                base_url, mode_label, duplicates_skipped,
+                "Inattendu en mode curseur : la base a peut-être bougé "
+                "pendant le poll, ou le serveur a un bug de génération de "
+                "next_after_id — à investiguer côté serveur." if use_cursor
+                else "Cause habituelle : tri SQL non déterministe combiné à "
+                "une pagination OFFSET/LIMIT, pas un bug du poller.",
+            )
+        if cards_without_coords:
+            logger.info(
+                "%s : %s carte(s) unique(s) sans coordonnées (lat/lon absents), "
+                "non géolocalisées — comportement normal, pas une erreur.",
+                base_url, cards_without_coords,
+            )
+        unique_cards_seen = total_inserted + cards_without_coords
+        if last_known_total is not None and unique_cards_seen != last_known_total:
+            # Après déduplication, s'il manque encore des cartes par rapport
+            # au total annoncé, ce ne sont ni des doublons ni des cartes
+            # sans coordonnées : elles n'ont simplement jamais été
+            # renvoyées, sur aucune page.
+            logger.warning(
+                "%s [mode %s] : %s carte(s) unique(s) vue(s) au total (dont "
+                "%s sans coordonnées) contre un total annoncé de %s — %s "
+                "carte(s) jamais renvoyée(s) sur aucune page. %s",
+                base_url, mode_label, unique_cards_seen, cards_without_coords,
+                last_known_total, last_known_total - unique_cards_seen,
+                "En mode curseur, ceci ne devrait normalement plus se "
+                "produire : signale soit un bug côté serveur (next_after_id "
+                "mal calculé), soit un décompte 'total' incorrect — à "
+                "investiguer côté serveur." if use_cursor
+                else "Probablement le même souci de tri instable côté "
+                "serveur distant, mais cette fois des cartes 'sautent' hors "
+                "de la pagination au lieu d'y être dupliquées.",
+            )
         return total_inserted
 
     def _prune_removed_servers(self, servers):

@@ -2,11 +2,11 @@
 Blueprint seo : tout ce qui concerne l'indexation par les moteurs de
 recherche.
 
-- /<filename>.html|.txt : sert les fichiers de vérification de propriété
-  déposés dans HTMLDIR/verification/ (Google Search Console, Bing,
-  Yandex...). Enregistré sans préfixe : ces fichiers doivent être
-  accessibles exactement à la racine du domaine, comme l'exigent ces
-  outils.
+- /<filename>.html|.txt|.xml : sert les fichiers de vérification de
+  propriété déposés dans HTMLDIR/verification/ (Google Search Console,
+  Yandex via .html/.txt ; Bing via BingSiteAuth.xml). Enregistré sans
+  préfixe : ces fichiers doivent être accessibles exactement à la racine
+  du domaine, comme l'exigent ces outils.
 - /sitemap.xml : généré dynamiquement à partir des pages du site et de la
   liste des serveurs connus (chacun expose sa collection sur /map/).
 - /robots.txt : autorise l'indexation générale, référence le sitemap, et
@@ -29,13 +29,14 @@ bp = Blueprint("seo", __name__, template_folder="../templates")
 def verification_file(filename: str):
     """
     Sert les fichiers de vérification de propriété de site déposés dans
-    datadir/verification/ (Google Search Console, Bing, Yandex, etc.).
-    Seuls les fichiers .html et .txt sont autorisés, et uniquement depuis
-    ce répertoire dédié — aucun autre fichier du serveur n'est exposé.
+    htmldir/verification/ (Google Search Console, Yandex via .html/.txt ;
+    Bing via BingSiteAuth.xml). Seuls les fichiers .html, .txt et .xml sont
+    autorisés, et uniquement depuis ce répertoire dédié — aucun autre
+    fichier du serveur n'est exposé.
     Usage : déposer le fichier fourni par le moteur de recherche dans
-    datadir/verification/ puis accéder à /<nom-du-fichier>.
+    htmldir/verification/ puis accéder à /<nom-du-fichier>.
     """
-    if not filename.endswith((".html", ".txt")):
+    if not filename.endswith((".html", ".txt", ".xml")):
         abort(404)
     verification_dir = Path(current_app.config["HTMLDIR"]) / "verification"
     if not verification_dir.exists():
@@ -43,7 +44,12 @@ def verification_file(filename: str):
     file_path = verification_dir / filename
     if not file_path.exists():
         abort(404)
-    mimetype = "text/html" if filename.endswith(".html") else "text/plain"
+    if filename.endswith(".html"):
+        mimetype = "text/html"
+    elif filename.endswith(".xml"):
+        mimetype = "application/xml"
+    else:
+        mimetype = "text/plain"
     return send_from_directory(verification_dir, filename, mimetype=mimetype)
 
 

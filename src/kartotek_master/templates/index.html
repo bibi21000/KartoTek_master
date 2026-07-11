@@ -337,7 +337,7 @@ function refreshPoints() {
   ].join(',');
 
   const myToken = ++fetchToken;
-  fetch(`/api/points?bbox=${encodeURIComponent(bbox)}&zoom=${zoom}`)
+  fetch(`/api/v1/points?bbox=${encodeURIComponent(bbox)}&zoom=${zoom}`)
     .then(r => r.json())
     .then(res => {
       if (myToken !== fetchToken) return; // une requête plus récente est déjà partie
