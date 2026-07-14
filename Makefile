@@ -35,7 +35,7 @@ run: install
 	$(VENV_BIN)/kartotek-master
 
 gunicorn: install
-	VENV_DIR=$(VENV) ./scripts/run_gunicorn.sh
+	VENV_DIR=$(VENV) bash -x ./scripts/run_gunicorn.sh
 
 test: dev-install
 	$(VENV_BIN)/pytest

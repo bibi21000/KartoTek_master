@@ -7,9 +7,7 @@ ENV PIP_NO_CACHE_DIR=false
 ENV KARTOTEK_MASTER_CONF=/app/conf/config.conf
 
 # create working directory and install pip dependencies
-RUN mkdir -p /data
-RUN mkdir -p /logs
-RUN mkdir -p /html
+RUN mkdir -p /data /logs /html /downloads
 COPY pyproject.toml /app/
 COPY src /app/src/
 COPY gunicorn.conf.py /app/

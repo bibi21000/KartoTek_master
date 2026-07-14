@@ -27,6 +27,7 @@ import os
 import signal
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urljoin
 
 import requests
 from babel.dates import format_datetime as babel_format_datetime
@@ -36,9 +37,11 @@ from flask_babel import Babel, get_locale
 from . import db
 from .colors import color_for_server
 from .contact import bp as contact_bp
+from .download import bp as download_bp
 from .geo import haversine_km
 from .geoapi import bp as geoapi_bp
 from .info import bp as info_bp
+from .limiter import limiter
 from .poller import Poller
 from .seo import bp as seo_bp
 from .status import bp as status_bp
@@ -104,6 +107,14 @@ def create_app():
     # html_dir dans [flask] (relatif à la racine du projet, ou chemin
     # absolu). Réutilise le dossier data/ existant par défaut.
     app.config["HTMLDIR"] = str(BASE_DIR / config.get("flask", "html_dir", fallback="data"))
+    # Répertoire contenant les fichiers proposés au téléchargement sur la
+    # page /download/ (paquets, installeurs...), configurable via
+    # download_dir dans [flask] (relatif à la racine du projet, ou
+    # chemin absolu).
+    download_dir = Path(config.get("flask", "download_dir", fallback="data/downloads"))
+    if not download_dir.is_absolute():
+        download_dir = BASE_DIR / download_dir
+    app.config["DOWNLOAD_DIR"] = str(download_dir)
 
     # Requis par flash()/session (utilisés par le blueprint contact) : sans
     # clé, Flask lève une erreur à la première tentative d'écriture en
@@ -120,6 +131,23 @@ def create_app():
             "ne persisteront pas après un redémarrage)."
         )
     app.config["SECRET_KEY"] = secret_key
+
+    # Flask-Limiter : protège certaines routes (ex. /download) contre les
+    # abus. Le backend de comptage est configurable via
+    # `rate_limit_storage_uri` dans [flask] (ex. "memory://" en dev,
+    # "redis://localhost:6379" en prod pour un comptage partagé entre
+    # workers gunicorn). Sans valeur, on retombe sur un stockage en
+    # mémoire du process (acceptable en dev, mais chaque worker aurait
+    # alors son propre compteur en prod avec plusieurs workers).
+    app.config["RATELIMIT_STORAGE_URI"] = config.get(
+        "flask", "rate_limit_storage_uri", fallback="memory://"
+    )
+    # Préfixe des clés utilisées dans le backend de stockage, pour éviter
+    # les collisions si ce dernier est partagé avec d'autres applications.
+    app.config["RATELIMIT_KEY_PREFIX"] = config.get(
+        "flask", "rate_limit_key_prefix", fallback="kartotek-master"
+    )
+    limiter.init_app(app)
 
     # Flask-Babel : langue choisie via ?lang=xx (mémorisée en session), sinon
     # l'en-tête Accept-Language du navigateur, sinon le français par défaut.
@@ -180,6 +208,7 @@ def create_app():
     app.config["MAX_POINTS_RETURNED"] = max_points
 
     app.register_blueprint(info_bp)
+    app.register_blueprint(download_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(status_bp)
     # /api/v1/points, /api/v1/bounds, /api/v1/nearby, /api/v1/next-update
@@ -263,6 +292,11 @@ def create_app():
             entry = {
                 "name": s.get("name") or s["server_url"],
                 "url": s["server_url"],
+                # Favicon servi par le serveur distant lui-même, à sa racine.
+                # On ne vérifie pas son existence ici (coûteux et non bloquant
+                # côté poller) : le client gère l'absence via l'événement
+                # onerror de l'<img>.
+                "favicon": urljoin(s["server_url"], "/favicon.ico"),
                 "distance_km": None,
             }
             min_lat = s.get("bounds_min_lat")

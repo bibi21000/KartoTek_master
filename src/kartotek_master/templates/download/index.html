@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% set header_logo_href = url_for('index') %}
+
+{% block extra_head %}
+<style>
+  main.page{ max-width: 800px; }
+  .download-table{
+    width:100%; border-collapse: collapse; font-size:14px;
+  }
+  .download-table th, .download-table td{
+    text-align:left; padding:8px 10px; border-bottom:1px solid var(--line);
+  }
+  .download-table th{ color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase; }
+  .download-table td.size, .download-table th.size{ text-align:right; white-space:nowrap; }
+  .download-empty{ color:var(--text-dim); font-size:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>{{ page_title }}</h1>
+
+{% if not files %}
+<p class="download-empty">{{ _('Aucun fichier disponible pour le moment.') }}</p>
+{% else %}
+<table class="download-table">
+  <thead>
+    <tr>
+      <th>{{ _('Fichier') }}</th>
+      <th class="size">{{ _('Taille') }}</th>
+      <th>{{ _('Date') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for file in files %}
+    <tr>
+      <td><a href="{{ url_for('download.get_file', filename=file.name) }}">{{ file.name }}</a></td>
+      <td class="size">{{ file.size_human }}</td>
+      <td><time class="local-dt" datetime="{{ file.mtime }}">{{ file.mtime|localdatetime }} UTC</time></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+// Conversion côté navigateur vers la locale/le fuseau horaire local :
+// le serveur ne connaît que l'heure UTC (repli affiché si JS est désactivé).
+document.querySelectorAll('time.local-dt[datetime]').forEach(el => {
+  const iso = el.getAttribute('datetime');
+  if (!iso) return;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return;
+  el.textContent = d.toLocaleString('{{ get_locale() }}', { dateStyle: 'medium', timeStyle: 'medium' });
+});
+</script>
+{% endif %}
+{% endblock %}

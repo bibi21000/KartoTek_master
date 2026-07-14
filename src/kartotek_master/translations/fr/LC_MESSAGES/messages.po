@@ -1,4 +1,4 @@
-# English translations for PROJECT.
+# French translations for PROJECT.
 # Copyright (C) 2026 ORGANIZATION
 # This file is distributed under the same license as the PROJECT project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
@@ -8,11 +8,11 @@ msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2026-07-13 10:28+0000\n"
-"PO-Revision-Date: 2026-07-06 22:07+0000\n"
+"PO-Revision-Date: 2026-07-13 12:34+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language: en\n"
-"Language-Team: en <LL@li.org>\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: fr\n"
+"Language-Team: fr <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -20,243 +20,235 @@ msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:49
 msgid "Nouveau message depuis le site"
-msgstr "New message from the site"
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:85
 msgid "Contact"
-msgstr "Contact"
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:94
 #: src/kartotek_master/contact/__init__.py:120
 msgid "Votre message a bien été envoyé, merci !"
-msgstr "Your message has been sent, thank you!"
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:101
 msgid "Le nom est obligatoire."
-msgstr "Name is required."
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:103
 msgid "L'adresse email est obligatoire."
-msgstr "Email address is required."
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:105
 msgid "L'adresse email n'est pas valide."
-msgstr "Email address is not valid."
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:107
 msgid "Le message ne peut pas être vide."
-msgstr "Message cannot be empty."
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:117
 msgid "L'envoi du message a échoué. Réessayez plus tard."
-msgstr "Sending the message failed. Please try again later."
+msgstr ""
 
 #: src/kartotek_master/contact/__init__.py:129
 msgid "Contactez-moi à propos de ma collection de cartes postales."
-msgstr "Contact me about my postcard collection."
+msgstr ""
 
 #: src/kartotek_master/download/__init__.py:40
 #: src/kartotek_master/templates/info/index.html:12
 msgid "Télécharger l'application Kartotek"
-msgstr "Download the Kartotek application"
+msgstr ""
 
 #: src/kartotek_master/download/__init__.py:68
 msgid "Téléchargements de l'application KartoTek."
-msgstr "Downloads of the KartoTek application."
+msgstr ""
 
 #: src/kartotek_master/info/__init__.py:17
 msgid "À propos"
-msgstr "About"
+msgstr ""
 
 #: src/kartotek_master/info/__init__.py:23
 msgid "À propos de KartoTek et de cette collection de cartes postales."
-msgstr "About KartoTek and this postcard collection."
+msgstr ""
 
 #: src/kartotek_master/status/__init__.py:26
 msgid "État des synchronisations"
-msgstr "Synchronization status"
+msgstr ""
 
 #: src/kartotek_master/templates/base.html:6
 #: src/kartotek_master/templates/index.html:6
 msgid "KartoTek"
-msgstr "KartoTek"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:172
 msgid "Rechercher un lieu, une adresse…"
-msgstr "Search for a place, an address…"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:177
 msgid "Centrer sur ma position"
-msgstr "Center on my location"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:186
 #: src/kartotek_master/templates/index.html:205
 msgid "Aucun point à l'écran"
-msgstr "No points on screen"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:190
 msgid "points chargés à l'écran"
-msgstr "points loaded on screen"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:202
 msgid "Votre position"
-msgstr "Your location"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:203
 msgid "Aucun résultat"
-msgstr "No results"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:204
 msgid "Recherche indisponible"
-msgstr "Search unavailable"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:206
 #, python-brace-format
 msgid "total en base : {n}"
-msgstr "total in database: {n}"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:207
 #, python-brace-format
 msgid "carte n°{id}"
-msgstr "card #{id}"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:208
 msgid "lat"
-msgstr "lat"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:209
 msgid "lon"
-msgstr "lon"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:210
 msgid "serveur"
-msgstr "server"
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:211
 msgid ""
 "Géolocalisation indisponible : cette page doit être servie en HTTPS (ou "
 "via localhost)."
 msgstr ""
-"Geolocation unavailable: this page must be served over HTTPS (or via "
-"localhost)."
 
 #: src/kartotek_master/templates/index.html:212
 msgid "Géolocalisation refusée par le navigateur."
-msgstr "Geolocation denied by the browser."
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:213
 msgid "Position indisponible pour le moment."
-msgstr "Location unavailable right now."
+msgstr ""
 
 #: src/kartotek_master/templates/index.html:214
 msgid "Délai de géolocalisation dépassé."
-msgstr "Geolocation request timed out."
+msgstr ""
 
 #: src/kartotek_master/templates/contact/index.html:13
 msgid "Laissez ce champ vide"
-msgstr "Leave this field empty"
+msgstr ""
 
 #: src/kartotek_master/templates/contact/index.html:18
 #: src/kartotek_master/templates/status/index.html:40
 msgid "Nom"
-msgstr "Name"
+msgstr ""
 
 #: src/kartotek_master/templates/contact/index.html:24
 msgid "Email"
-msgstr "Email"
+msgstr ""
 
 #: src/kartotek_master/templates/contact/index.html:30
 msgid "Sujet"
-msgstr "Subject"
+msgstr ""
 
 #: src/kartotek_master/templates/contact/index.html:35
 msgid "Message"
-msgstr "Message"
+msgstr ""
 
 #: src/kartotek_master/templates/contact/index.html:40
 msgid "Envoyer"
-msgstr "Send"
+msgstr ""
 
 #: src/kartotek_master/templates/download/index.html:22
 msgid "Aucun fichier disponible pour le moment."
-msgstr "No file available at the moment."
+msgstr ""
 
 #: src/kartotek_master/templates/download/index.html:27
 msgid "Fichier"
-msgstr "File"
+msgstr ""
 
 #: src/kartotek_master/templates/download/index.html:28
 msgid "Taille"
-msgstr "Size"
+msgstr ""
 
 #: src/kartotek_master/templates/download/index.html:29
 msgid "Date"
-msgstr "Date"
+msgstr ""
 
 #: src/kartotek_master/templates/info/index.html:16
 msgid "Me contacter"
-msgstr "Contact me"
+msgstr ""
 
 #: src/kartotek_master/templates/partials/header.html:19
 msgid "KartoTek – Vintage postcard manager"
-msgstr "KartoTek – Vintage postcard manager"
+msgstr ""
 
 #: src/kartotek_master/templates/partials/header.html:23
 msgid "Langue"
-msgstr "Language"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:31
 #, python-format
 msgid "%(n)s points GPS en base au total."
-msgstr "%(n)s GPS points in the database in total."
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:34
 msgid "Aucun serveur synchronisé pour le moment."
-msgstr "No server synchronized yet."
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:41
 msgid "URL"
-msgstr "URL"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:43
 msgid "Dernière vérification"
-msgstr "Last check"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:44
 msgid "MAJ points"
-msgstr "Points updated"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:45
 msgid "Points"
-msgstr "Points"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:46
 msgid "Étendue GPS"
-msgstr "GPS extent"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:47
 msgid "Maj Étendue GPS"
-msgstr "GPS extent updated"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:48
 msgid "Dernière erreur"
-msgstr "Last error"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:56
 msgid "Erreur"
-msgstr "Error"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:58
 msgid "OK"
-msgstr "OK"
+msgstr ""
 
 #: src/kartotek_master/templates/status/index.html:60
 msgid "Jamais synchronisé"
-msgstr "Never synchronized"
-
-#~ msgid "Dernière synchro"
-#~ msgstr "Last sync"
-
-#~ msgid "Maj bounds"
-#~ msgstr "Bounds updated"
+msgstr ""
 

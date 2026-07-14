@@ -2,6 +2,11 @@
 {# {% include "partials/header.html" %}                                #}
 {# Sur la page d'accueil (la carte), on agrandit le logo en passant :  #}
 {# {% set header_large = true %}{% include "partials/header.html" %}   #}
+{# Le logo pointe vers /info/ par défaut ; pour qu'il renvoie plutôt   #}
+{# vers la page d'accueil (cas des pages /info/, /download/, /contact/ #}
+{# où /info/ n'a pas de sens comme destination) :                     #}
+{# {% set header_logo_href = url_for('index') %}                      #}
+{# {% include "partials/header.html" %}                                #}
 {#                                                                     #}
 {# Positionné en overlay fixe et centré en haut : fonctionne aussi     #}
 {# bien par-dessus la carte plein écran (templates/index.html) que     #}
@@ -13,7 +18,7 @@
 {# fond sombre le rendrait illisible.                                  #}
 
 <header class="site-header{% if header_large %} site-header--home{% endif %}">
-  <a href="{{ url_for('info.index') }}" class="site-header__logo-link">
+  <a href="{{ header_logo_href or url_for('info.index') }}" class="site-header__logo-link">
     <img
       src="{{ url_for('static', filename='img/kartotek-logo.png') }}"
       alt="{{ _('KartoTek – Vintage postcard manager') }}"

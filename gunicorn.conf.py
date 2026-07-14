@@ -38,7 +38,7 @@ def _setting(name, default, cast=str):
     return default
 
 
-bind = _setting("bind", "0.0.0.0:5000")
+bind = _setting("bind", "0.0.0.0:5003")
 
 # Par défaut, UN SEUL worker : le thread de polling démarre par process,
 # donc plusieurs workers dupliqueraient les synchronisations. Les requêtes
