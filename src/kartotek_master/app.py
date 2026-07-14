@@ -149,6 +149,16 @@ def create_app():
     )
     limiter.init_app(app)
 
+    # Suivi des visites Matomo : hôte du serveur Matomo, configurable via
+    # site_matomo dans [flask] (ex. "matomo.example.com"). Si absent ou
+    # vide, le code de tracking n'est pas injecté dans les pages (voir
+    # templates/base.html). id_matomo est l'identifiant du site dans
+    # Matomo (setSiteId), configurable via id_matomo dans [flask].
+    app.config["SITE_MATOMO"] = config.get("flask", "site_matomo", fallback="")
+    app.config["ID_MATOMO"] = config.get("flask", "id_matomo", fallback="1")
+    app.jinja_env.globals["site_matomo"] = app.config["SITE_MATOMO"]
+    app.jinja_env.globals["id_matomo"] = app.config["ID_MATOMO"]
+
     # Flask-Babel : langue choisie via ?lang=xx (mémorisée en session), sinon
     # l'en-tête Accept-Language du navigateur, sinon le français par défaut.
     def _select_locale():

@@ -1,5 +1,5 @@
 [Unit]
-Description=KartoTek-Master Docker Container
+Description=KartoTek MariaDB Docker Container
 # Only start after Docker is ready
 After=docker.service
 Requires=docker.service
@@ -11,27 +11,27 @@ Type=simple
 
 # Environment files
 EnvironmentFile=/etc/kartotek/systemd.conf
-EnvironmentFile=/etc/kartotek/master/systemd.conf
+EnvironmentFile=/etc/kartotek/mariadb/systemd.conf
 
 # Create the Docker volume if it doesn't exist
-ExecStartPre=/bin/bash -c '/usr/bin/docker volume inspect kartotek_master >/dev/null 2>&1 || /usr/bin/docker volume create kartotek_master'
+# ExecStartPre=/bin/bash -c '/usr/bin/docker volume inspect kartotek_mariadb >/dev/null 2>&1 || /usr/bin/docker volume create kartotek_mariadb'
 
 # Pull the image first if PULL is true/True/1
-ExecStartPre=/bin/bash -c '[ "$PULL" = "true" ] || [ "$PULL" = "1" ] && exec /usr/bin/docker pull "$IMAGE"'
+ExecStartPre=/bin/bash -c 'if [ "$PULL" = "true" ] || [ "$PULL" = "1" ]; then exec /usr/bin/docker pull "$IMAGE"; fi; exit 0'
 
 # Start the container in the foreground (no -d flag)
 ExecStart=/usr/bin/docker run \
-  --name kartotek_master \
+  --name kartotek_mariadb \
   --rm ${DOCKER_OPTS} \
-  -p 8003:8003 \
-  -v kartotek_master:/data \
-  -v ${MOUNT_HTML}:/html \
-  -v ${MOUNT_DOWNLOADS}:/downloads \
-  -v /etc/kartotek/master/:/app/conf \
+  -v ${MOUNT}:/var/lib/mysql \
+  -e MYSQL_ROOT_PASSWORD=${ROOT_PASSWORD} \
+  -e MYSQL_DATABASE=${DATABASE} \
+  -e MYSQL_USER=${USER} \
+  -e MYSQL_PASSWORD=${PASSWORD} \
   ${IMAGE}
 
 # Gracefully stop the container
-ExecStop=/usr/bin/docker stop -t 30 kartotek_master
+ExecStop=/usr/bin/docker stop -t 30 kartotek_mariadb
 
 # Timeout for start operation
 TimeoutStartSec=60
