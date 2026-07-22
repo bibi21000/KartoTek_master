@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% set header_logo_href = url_for('index') %}
+
+{% block extra_head %}
+<style>
+  main.page{ max-width: 800px; }
+  .guide-back{ display:inline-block; margin-bottom:20px; font-size:14px; color:var(--text-dim); }
+  .guide-back:hover{ color: var(--accent); }
+
+  .guide-content{ font-size: 15px; line-height: 1.7; }
+  .guide-content > :first-child{ margin-top: 0; }
+  .guide-content > :last-child{ margin-bottom: 0; }
+  .guide-content img{ max-width: 100%; border-radius: 6px; }
+  .guide-content pre{
+    background: var(--bg-panel); border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 12px; overflow-x: auto;
+  }
+  .guide-content code{ font-family: 'JetBrains Mono', Consolas, monospace; font-size: 13px; }
+  .guide-content pre code{ background: none; padding: 0; }
+  .guide-content table{ border-collapse: collapse; width: 100%; }
+  .guide-content th, .guide-content td{
+    text-align:left; padding:6px 10px; border-bottom:1px solid var(--line);
+  }
+  .guide-content blockquote{
+    margin: 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--text-dim);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<a class="guide-back" href="{{ url_for('download.index') }}">&larr; {{ _('Télécharger l\'application Kartotek') }}</a>
+
+<div class="guide-content">{{ guide_html|safe }}</div>
+{% endblock %}

@@ -15,8 +15,9 @@ dependencies = [
     "flask>=3.1,<4",
     "requests>=2.32,<3",
     "flask-babel>=4.0,<5",
-    "redis",
     "flask-limiter",
+    "Markdown",
+    "redis",
 ]
 
 [project.optional-dependencies]

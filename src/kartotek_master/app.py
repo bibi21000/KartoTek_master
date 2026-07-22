@@ -48,7 +48,7 @@ from .status import bp as status_bp
 
 # Langues prises en charge par l'application (sélection auto via l'en-tête
 # Accept-Language du navigateur, surchargeable avec ?lang=xx).
-SUPPORTED_LOCALES = ["fr", "en"]
+SUPPORTED_LOCALES = ["fr", "en", "uk"]
 DEFAULT_LOCALE = "fr"
 
 # Racine du projet : par défaut le répertoire courant (là où l'on lance

@@ -28,6 +28,7 @@
   <nav class="site-header__lang" aria-label="{{ _('Langue') }}">
     <a href="{{ request.path }}?lang=fr" class="{% if get_locale() == 'fr' %}is-active{% endif %}">FR</a>
     <a href="{{ request.path }}?lang=en" class="{% if get_locale() == 'en' %}is-active{% endif %}">EN</a>
+    <a href="{{ request.path }}?lang=uk" class="{% if get_locale() == 'uk' %}is-active{% endif %}">UK</a>
   </nav>
 </header>
 

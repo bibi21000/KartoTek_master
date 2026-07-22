@@ -5,6 +5,7 @@
 {% block extra_head %}
 <style>
   main.page{ max-width: 800px; }
+  main.page h1{ font-size: 22px; }
   .download-table{
     width:100%; border-collapse: collapse; font-size:14px;
   }
@@ -14,11 +15,47 @@
   .download-table th{ color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase; }
   .download-table td.size, .download-table th.size{ text-align:right; white-space:nowrap; }
   .download-empty{ color:var(--text-dim); font-size:14px; }
+
+  .guide-link{ margin: 0 0 24px; font-size:15px; }
+  .guide-link a{ font-weight:600; }
+
+  .readme-content{
+    margin: 0 0 32px; padding: 16px 20px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--bg-panel); font-size: 14px; line-height: 1.6;
+  }
+  .readme-content > :first-child{ margin-top: 0; }
+  .readme-content > :last-child{ margin-bottom: 0; }
+  .readme-content img{ max-width: 100%; border-radius: 6px; }
+  .readme-content pre{
+    background: var(--bg-deep); border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 12px; overflow-x: auto;
+  }
+  .readme-content code{ font-family: 'JetBrains Mono', Consolas, monospace; font-size: 13px; }
+  .readme-content pre code{ background: none; padding: 0; }
+  .readme-content table{ border-collapse: collapse; width: 100%; }
+  .readme-content th, .readme-content td{
+    text-align:left; padding:6px 10px; border-bottom:1px solid var(--line);
+  }
+  .readme-content blockquote{
+    margin: 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--text-dim);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <h1>{{ page_title }}</h1>
+
+{% if readme_html %}
+<div class="readme-content">{{ readme_html|safe }}</div>
+{% endif %}
+
+{% if install_guide_title %}
+<p class="guide-link"><a href="{{ url_for('download.installation_guide') }}">{{ install_guide_title }}</a></p>
+{% endif %}
+
+{% if guide_title %}
+<p class="guide-link"><a href="{{ url_for('download.guide') }}">{{ guide_title }}</a></p>
+{% endif %}
 
 {% if not files %}
 <p class="download-empty">{{ _('Aucun fichier disponible pour le moment.') }}</p>
