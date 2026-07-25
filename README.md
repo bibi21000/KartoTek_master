@@ -1,6 +1,6 @@
 # Kartotek Master
 
-Directory of KartoTek user sites [Directory](https://kartotek.eu/)
+[Directory](https://kartotek.eu/) of KartoTek user sites
 
 KartoTek is an application for managing postcards, from scanning to web publication.
 
