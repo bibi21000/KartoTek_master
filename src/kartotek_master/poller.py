@@ -77,10 +77,13 @@ class Poller:
     def _load_servers(self):
         """
         servers.json attendu :
-            [{"name": "serveur1", "url": "http://..."}, ...]
+            [{"name": "serveur1", "url": "http://...", "description": "..."}, ...]
+
+        `description` est optionnelle (chaîne vide si absente).
 
         Rétrocompatibilité : une simple liste de chaînes ["http://...", ...]
-        est aussi acceptée (le nom affiché sera alors l'URL elle-même).
+        est aussi acceptée (le nom affiché sera alors l'URL elle-même, sans
+        description).
 
         Renvoie `None` en cas d'erreur de lecture/format (fichier absent ou
         invalide) — à distinguer d'une liste valide mais vide. Ça évite de
@@ -98,11 +101,13 @@ class Poller:
                 if isinstance(entry, dict):
                     url = str(entry.get("url", "")).rstrip("/")
                     name = entry.get("name") or url
+                    description = str(entry.get("description") or "").strip()
                 else:
                     url = str(entry).rstrip("/")
                     name = url
+                    description = ""
                 if url:
-                    servers.append({"name": name, "url": url})
+                    servers.append({"name": name, "url": url, "description": description})
             return servers
         except FileNotFoundError:
             logger.error("Fichier %s introuvable, aucun serveur à interroger", self.servers_file)
@@ -209,13 +214,13 @@ class Poller:
         db.update_server_bounds(base_url, min_lat, max_lat, min_lon, max_lon)
 
     # ------------------------------------------------------------- workflow
-    def _sync_server(self, base_url, name):
+    def _sync_server(self, base_url, name, description=""):
         dbid_url = f"{base_url}/api/v1/dbid"
         try:
             resp = self._request_with_retry(dbid_url)
         except requests.RequestException as exc:
             logger.error("Impossible de joindre %s : %s", dbid_url, exc)
-            db.touch_server_check(base_url, name=name, error=str(exc))
+            db.touch_server_check(base_url, name=name, description=description, error=str(exc))
             return
 
         try:
@@ -229,7 +234,7 @@ class Poller:
 
         if current_dbid is not None and current_dbid == new_dbid:
             logger.debug("Aucun changement pour %s (dbid=%s)", base_url, new_dbid)
-            db.touch_server_check(base_url, name=name)
+            db.touch_server_check(base_url, name=name, description=description)
             return
 
         # Uniquement quand le dbid change : les bounds sont censées ne
@@ -246,7 +251,7 @@ class Poller:
         # chaque changement de dbid, dupliquant les données au fil du temps.
         db.delete_points_for_server(base_url)
         total_inserted = self._download_all_points(base_url)
-        db.update_server_dbid(base_url, new_dbid, total_inserted, name=name)
+        db.update_server_dbid(base_url, new_dbid, total_inserted, name=name, description=description)
         logger.info("%s : %s points synchronisés", base_url, total_inserted)
 
     def _download_all_points(self, base_url):
@@ -442,7 +447,7 @@ class Poller:
             if self._stop_event.is_set():
                 return
             try:
-                self._sync_server(server["url"], server["name"])
+                self._sync_server(server["url"], server["name"], server["description"])
             except Exception:
                 # Filet de sécurité : un bug sur un serveur ne doit jamais tuer le thread
                 logger.exception("Erreur inattendue lors du traitement de %s", server["url"])

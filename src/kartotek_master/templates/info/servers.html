@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% set header_logo_href = url_for('index') %}
+
+{% block extra_head %}
+<style>
+  main.page{ max-width: 860px; }
+
+  .servers-status{
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .servers-status .dot{
+    display:inline-block; width:7px; height:7px; border-radius:50%;
+    background: var(--accent); flex-shrink:0;
+  }
+
+  .servers-table-wrap{
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table.servers-table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.servers-table th, table.servers-table td{
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.servers-table tbody tr:last-child td{ border-bottom: none; }
+  table.servers-table th{
+    background: var(--bg-panel);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  table.servers-table tbody tr:hover{ background: rgba(57,214,200,0.06); }
+
+  .server-name{ display:flex; align-items:center; gap:8px; font-weight:600; }
+  .server-favicon{ width:16px; height:16px; border-radius:3px; flex-shrink:0; }
+  .server-name a{ color: var(--text-main); text-decoration:none; }
+  .server-name a:hover{ color: var(--accent); text-decoration:underline; }
+  .server-description{ color: var(--text-dim); }
+  .server-distance{ color: var(--accent); white-space: nowrap; font-family:'JetBrains Mono',monospace; }
+
+  .servers-empty{ padding: 24px; text-align:center; color: var(--text-dim); }
+</style>
+{% endblock %}
+
+{% block content %}
+<article>
+  <h1>{{ page_title }}</h1>
+
+  <p class="servers-status" id="servers-status">
+    <span class="dot"></span>
+    <span id="servers-status-text">{{ _('Chargement des serveurs…') }}</span>
+  </p>
+
+  <div class="servers-table-wrap">
+    <table class="servers-table" id="servers-table">
+      <thead>
+        <tr>
+          <th>{{ _('Serveur') }}</th>
+          <th>{{ _('Description') }}</th>
+          <th id="servers-distance-header" hidden>{{ _('Distance') }}</th>
+        </tr>
+      </thead>
+      <tbody id="servers-table-body">
+        <tr><td colspan="3" class="servers-empty">{{ _('Chargement…') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</article>
+
+<script>
+const I18N_SERVERS = {
+  sortedByDistance: {{ _('Triés par proximité avec votre position.') | tojson }},
+  sortedAlpha: {{ _('Position non partagée : tri alphabétique.') | tojson }},
+  loadFailed: {{ _('Impossible de charger la liste des serveurs.') | tojson }},
+  empty: {{ _('Aucun serveur connu pour le moment.') | tojson }},
+  distanceKm: {{ _('{n} km') | tojson }},
+};
+
+function escapeHtmlServers(str) {
+  return String(str)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function renderServersTable(servers, hasPosition) {
+  const statusText = document.getElementById('servers-status-text');
+  const body = document.getElementById('servers-table-body');
+  const distanceHeader = document.getElementById('servers-distance-header');
+
+  statusText.textContent = hasPosition ? I18N_SERVERS.sortedByDistance : I18N_SERVERS.sortedAlpha;
+  distanceHeader.hidden = !hasPosition;
+
+  if (!servers.length) {
+    body.innerHTML = `<tr><td colspan="3" class="servers-empty">${escapeHtmlServers(I18N_SERVERS.empty)}</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = servers.map(s => {
+    const name = escapeHtmlServers(s.name || s.url);
+    const url = escapeHtmlServers(s.url);
+    const description = escapeHtmlServers(s.description || '');
+    const favicon = escapeHtmlServers(s.favicon || '');
+    const distanceCell = hasPosition
+      ? `<td class="server-distance">${
+          s.distance_km != null ? escapeHtmlServers(I18N_SERVERS.distanceKm.replace('{n}', s.distance_km)) : '—'
+        }</td>`
+      : '';
+    return `
+      <tr>
+        <td>
+          <div class="server-name">
+            <img class="server-favicon" src="${favicon}" alt="" onerror="this.remove()">
+            <a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>
+          </div>
+        </td>
+        <td class="server-description">${description || '—'}</td>
+        ${distanceCell}
+      </tr>
+    `;
+  }).join('');
+}
+
+function loadServers(lat, lon) {
+  const params = new URLSearchParams();
+  if (lat != null && lon != null) {
+    params.set('lat', lat);
+    params.set('lon', lon);
+  }
+  fetch(`/api/v1/servers?${params.toString()}`)
+    .then(r => r.json())
+    .then(res => renderServersTable(res.servers || [], lat != null && lon != null))
+    .catch(() => {
+      document.getElementById('servers-status-text').textContent = I18N_SERVERS.loadFailed;
+      document.getElementById('servers-table-body').innerHTML =
+        `<tr><td colspan="3" class="servers-empty">${escapeHtmlServers(I18N_SERVERS.loadFailed)}</td></tr>`;
+    });
+}
+
+// On tente d'obtenir la position pour trier par proximité ; sans réponse
+// rapide de l'utilisateur (refus, timeout, contexte non sécurisé...), on
+// retombe silencieusement sur le tri alphabétique côté serveur.
+if (window.isSecureContext && navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    pos => loadServers(pos.coords.latitude, pos.coords.longitude),
+    () => loadServers(null, null),
+    { enableHighAccuracy: false, timeout: 6000 }
+  );
+} else {
+  loadServers(null, null);
+}
+</script>
+{% endblock %}

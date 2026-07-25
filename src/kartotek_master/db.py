@@ -86,6 +86,12 @@ def init_db():
                 cur.execute("ALTER TABLE servers_state ADD COLUMN name TEXT;")
             except sqlite3.OperationalError:
                 pass  # la colonne existe déjà
+            # Migration douce : idem pour `description` (texte libre saisi
+            # dans servers.json, affiché sur la page /info/serveurs/).
+            try:
+                cur.execute("ALTER TABLE servers_state ADD COLUMN description TEXT;")
+            except sqlite3.OperationalError:
+                pass  # la colonne existe déjà
             # Migration douce : idem pour les colonnes de bounding box
             # (étendue géographique de la collection de chaque serveur,
             # récupérée via GET /api/v1/bounds).
@@ -134,24 +140,25 @@ def get_server_state(server_url: str):
         return dict(row) if row else None
 
 
-def touch_server_check(server_url: str, name: str = None, error: str = None):
+def touch_server_check(server_url: str, name: str = None, description: str = None, error: str = None):
     """Met à jour la date de dernière vérification (que le dbid ait changé ou non)."""
     now = datetime.now(timezone.utc).isoformat()
     with get_cursor(commit=True) as cur:
         cur.execute(
             """
-            INSERT INTO servers_state (server_url, name, last_check, last_error)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO servers_state (server_url, name, description, last_check, last_error)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(server_url) DO UPDATE SET
                 name = COALESCE(excluded.name, servers_state.name),
+                description = COALESCE(excluded.description, servers_state.description),
                 last_check = excluded.last_check,
                 last_error = excluded.last_error
             """,
-            (server_url, name, now, error),
+            (server_url, name, description, now, error),
         )
 
 
-def update_server_dbid(server_url: str, dbid: str, points_count: int, name: str = None):
+def update_server_dbid(server_url: str, dbid: str, points_count: int, name: str = None, description: str = None):
     """
     points_count : nombre de points insérés lors de CETTE synchronisation
     (remplace la valeur précédente, ne s'y ajoute pas — chaque
@@ -163,17 +170,18 @@ def update_server_dbid(server_url: str, dbid: str, points_count: int, name: str 
     with get_cursor(commit=True) as cur:
         cur.execute(
             """
-            INSERT INTO servers_state (server_url, name, dbid, last_check, last_sync, points_count, last_error)
-            VALUES (?, ?, ?, ?, ?, ?, NULL)
+            INSERT INTO servers_state (server_url, name, description, dbid, last_check, last_sync, points_count, last_error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
             ON CONFLICT(server_url) DO UPDATE SET
                 name = COALESCE(excluded.name, servers_state.name),
+                description = COALESCE(excluded.description, servers_state.description),
                 dbid = excluded.dbid,
                 last_check = excluded.last_check,
                 last_sync = excluded.last_sync,
                 points_count = excluded.points_count,
                 last_error = NULL
             """,
-            (server_url, name, dbid, now, now, points_count),
+            (server_url, name, description, dbid, now, now, points_count),
         )
 
 

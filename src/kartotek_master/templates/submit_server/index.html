@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% set header_logo_href = url_for('index') %}
+
+{% block content %}
+<h1>{{ page_title }}</h1>
+<p style="color:var(--text-dim); margin-top:-8px;">
+  {{ _("Vous gérez un serveur KartoTek et souhaitez qu'il apparaisse sur la carte et dans la liste des serveurs ? Décrivez-le ci-dessous.") }}
+</p>
+
+{% if errors._global %}
+<div class="flash flash-error">{{ errors._global }}</div>
+{% endif %}
+
+<form method="post" novalidate>
+  {# Honeypot anti-spam : caché visuellement, doit rester vide #}
+  <p style="position:absolute; left:-9999px; top:auto;">
+    <label for="website">{{ _('Laissez ce champ vide') }}</label>
+    <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+  </p>
+
+  <p>
+    <label for="name">{{ _('Nom du serveur') }}</label>
+    <input id="name" name="name" type="text" value="{{ values.name }}" required>
+    {% if errors.name %}<span class="field-error">{{ errors.name }}</span>{% endif %}
+  </p>
+
+  <p>
+    <label for="url">{{ _('URL du serveur') }}</label>
+    <input id="url" name="url" type="url" placeholder="https://…" value="{{ values.url }}" required>
+    {% if errors.url %}<span class="field-error">{{ errors.url }}</span>{% endif %}
+  </p>
+
+  <p>
+    <label for="description">{{ _('Description') }}</label>
+    <textarea id="description" name="description" rows="5" required>{{ values.description }}</textarea>
+    {% if errors.description %}<span class="field-error">{{ errors.description }}</span>{% endif %}
+  </p>
+
+  <button type="submit">{{ _('Proposer ce serveur') }}</button>
+</form>
+{% endblock %}

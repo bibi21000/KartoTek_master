@@ -256,3 +256,146 @@ msgstr ""
 msgid "Jamais synchronisé"
 msgstr ""
 
+#: src/kartotek_master/templates/info/index.html:22
+msgid "Liste des serveurs"
+msgstr ""
+
+#: src/kartotek_master/info/__init__.py:35
+msgid "Serveurs"
+msgstr ""
+
+#: src/kartotek_master/info/__init__.py:39
+msgid "Liste des serveurs KartoTek connus."
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:68
+msgid "Chargement des serveurs…"
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:78
+msgid "Serveur"
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:79
+msgid "Description"
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:80
+msgid "Distance"
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:84
+msgid "Chargement…"
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:97
+msgid "Triés par proximité avec votre position."
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:98
+msgid "Position non partagée : tri alphabétique."
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:99
+msgid "Impossible de charger la liste des serveurs."
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:100
+msgid "Aucun serveur connu pour le moment."
+msgstr ""
+
+#: src/kartotek_master/templates/info/servers.html:101
+msgid "{n} km"
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:82
+msgid "Ce serveur  rassemble sur une même carte les cartes postales anciennes géolocalisées de plusieurs collections KartoTek, synchronisées en continu."
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:94
+msgid "Voir la carte"
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:95
+msgid "Explorer toutes les cartes postales géolocalisées."
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:105
+msgid "Tous les serveurs connus, triés par proximité."
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:114
+#: src/kartotek_master/submit_server/__init__.py:73
+#: src/kartotek_master/submit_server/__init__.py:78
+msgid "Référencer mon serveur"
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:115
+msgid "Proposer votre serveur pour rejoindre la carte."
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:125
+msgid "Télécharger l'application"
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:126
+msgid "Installer l'application Kartotek."
+msgstr ""
+
+#: src/kartotek_master/templates/info/index.html:135
+msgid "Une question, une suggestion ?"
+msgstr ""
+
+#: src/kartotek_master/info/__init__.py:17
+msgid "Informations"
+msgstr ""
+
+#: src/kartotek_master/info/__init__.py:19
+msgid "KartoTek et cette collection de cartes postales."
+msgstr ""
+
+#: src/kartotek_master/templates/submit_server/index.html:7
+msgid "Vous gérez un serveur KartoTek et souhaitez qu'il apparaisse sur la carte et dans la liste des serveurs ? Décrivez-le ci-dessous."
+msgstr ""
+
+#: src/kartotek_master/templates/submit_server/index.html:22
+msgid "Nom du serveur"
+msgstr ""
+
+#: src/kartotek_master/templates/submit_server/index.html:28
+msgid "URL du serveur"
+msgstr ""
+
+#: src/kartotek_master/templates/submit_server/index.html:36
+msgid "Proposer ce serveur"
+msgstr ""
+
+#: src/kartotek_master/submit_server/__init__.py:83
+#: src/kartotek_master/submit_server/__init__.py:113
+msgid "Merci, votre proposition a bien été envoyée !"
+msgstr ""
+
+#: src/kartotek_master/submit_server/__init__.py:92
+msgid "Le nom du serveur est obligatoire."
+msgstr ""
+
+#: src/kartotek_master/submit_server/__init__.py:94
+msgid "L'URL du serveur est obligatoire."
+msgstr ""
+
+#: src/kartotek_master/submit_server/__init__.py:99
+msgid "L'URL n'est pas valide (doit commencer par http:// ou https://)."
+msgstr ""
+
+#: src/kartotek_master/submit_server/__init__.py:102
+msgid "Une courte description est nécessaire."
+msgstr ""
+
+#: src/kartotek_master/submit_server/__init__.py:109
+msgid "L'envoi de la proposition a échoué. Réessayez plus tard."
+msgstr ""
+
+#: src/kartotek_master/submit_server/__init__.py:121
+msgid "Proposez votre serveur pour l'ajouter à KartoTek."
+msgstr ""
+

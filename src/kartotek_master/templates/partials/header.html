@@ -51,6 +51,24 @@
   .site-header__logo-link{
     display: inline-block;
     line-height: 0; /* évite un espace fantôme sous l'image */
+    border-radius: 8px;
+    /* Anneau discret qui pulse quelques fois au chargement, pour indiquer
+       que le logo est cliquable (lien vers /info/). S'arrête de lui-même
+       (animation-iteration-count fini) pour ne pas devenir agaçant, et se
+       coupe dès la première interaction de l'utilisateur avec le logo. */
+    animation: logo-hint-pulse 1.8s ease-out 1s 3;
+  }
+  .site-header__logo-link:hover,
+  .site-header__logo-link:focus-visible{
+    animation: none;
+  }
+  @keyframes logo-hint-pulse{
+    0%   { box-shadow: 0 0 0 0 rgba(57, 214, 200, 0.55); }
+    70%  { box-shadow: 0 0 0 10px rgba(57, 214, 200, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(57, 214, 200, 0); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .site-header__logo-link{ animation: none; }
   }
   .site-header__logo{
     height: 40px;

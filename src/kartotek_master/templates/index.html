@@ -390,6 +390,8 @@ function renderPoints(res) {
       const cardLine = item.external_id
         ? `${I18N.popupCard.replace('{id}', item.external_id)}<br>`
         : '';
+      const known = serverInfo.get(item.server_url);
+      const serverLabel = escapeHtml((known && known.name) || item.server_url);
       L.circleMarker([item.lat, item.lon], {
         radius: 4,
         color,
@@ -398,7 +400,7 @@ function renderPoints(res) {
         fillOpacity: 0.8
       })
       .bindPopup(
-        `${cardLine}${I18N.popupLat}: ${item.lat.toFixed(5)}<br>${I18N.popupLon}: ${item.lon.toFixed(5)}<br>${I18N.popupServer}: ${item.server_url}`
+        `${cardLine}${I18N.popupLat}: ${item.lat.toFixed(5)}<br>${I18N.popupLon}: ${item.lon.toFixed(5)}<br>${I18N.popupServer}: ${serverLabel}`
       )
       .addTo(pointsLayer);
     }

@@ -258,3 +258,146 @@ msgstr "OK"
 #: src/kartotek_master/templates/status/index.html:60
 msgid "Jamais synchronisé"
 msgstr "Ніколи не синхронізовано"
+#: src/kartotek_master/templates/info/index.html:22
+msgid "Liste des serveurs"
+msgstr "Список серверів"
+
+#: src/kartotek_master/info/__init__.py:35
+msgid "Serveurs"
+msgstr "Сервери"
+
+#: src/kartotek_master/info/__init__.py:39
+msgid "Liste des serveurs KartoTek connus."
+msgstr "Список відомих серверів KartoTek."
+
+#: src/kartotek_master/templates/info/servers.html:68
+msgid "Chargement des serveurs…"
+msgstr "Завантаження серверів…"
+
+#: src/kartotek_master/templates/info/servers.html:78
+msgid "Serveur"
+msgstr "Сервер"
+
+#: src/kartotek_master/templates/info/servers.html:79
+msgid "Description"
+msgstr "Опис"
+
+#: src/kartotek_master/templates/info/servers.html:80
+msgid "Distance"
+msgstr "Відстань"
+
+#: src/kartotek_master/templates/info/servers.html:84
+msgid "Chargement…"
+msgstr "Завантаження…"
+
+#: src/kartotek_master/templates/info/servers.html:97
+msgid "Triés par proximité avec votre position."
+msgstr "Відсортовано за близькістю до вашого місцезнаходження."
+
+#: src/kartotek_master/templates/info/servers.html:98
+msgid "Position non partagée : tri alphabétique."
+msgstr "Місцезнаходження не надано: сортування за алфавітом."
+
+#: src/kartotek_master/templates/info/servers.html:99
+msgid "Impossible de charger la liste des serveurs."
+msgstr "Не вдалося завантажити список серверів."
+
+#: src/kartotek_master/templates/info/servers.html:100
+msgid "Aucun serveur connu pour le moment."
+msgstr "Поки що немає відомих серверів."
+
+#: src/kartotek_master/templates/info/servers.html:101
+msgid "{n} km"
+msgstr "{n} км"
+
+#: src/kartotek_master/templates/info/index.html:82
+msgid "Ce serveur  rassemble sur une même carte les cartes postales anciennes géolocalisées de plusieurs collections KartoTek, synchronisées en continu."
+msgstr "Цей сервер об'єднує на одній карті геолоковані старовинні листівки з кількох колекцій KartoTek, які синхронізуються безперервно."
+
+#: src/kartotek_master/templates/info/index.html:94
+msgid "Voir la carte"
+msgstr "Переглянути карту"
+
+#: src/kartotek_master/templates/info/index.html:95
+msgid "Explorer toutes les cartes postales géolocalisées."
+msgstr "Переглянути всі геолоковані листівки."
+
+#: src/kartotek_master/templates/info/index.html:105
+msgid "Tous les serveurs connus, triés par proximité."
+msgstr "Усі відомі сервери, відсортовані за близькістю."
+
+#: src/kartotek_master/templates/info/index.html:114
+#: src/kartotek_master/submit_server/__init__.py:73
+#: src/kartotek_master/submit_server/__init__.py:78
+msgid "Référencer mon serveur"
+msgstr "Додати мій сервер"
+
+#: src/kartotek_master/templates/info/index.html:115
+msgid "Proposer votre serveur pour rejoindre la carte."
+msgstr "Запропонуйте свій сервер для карти."
+
+#: src/kartotek_master/templates/info/index.html:125
+msgid "Télécharger l'application"
+msgstr "Завантажити застосунок"
+
+#: src/kartotek_master/templates/info/index.html:126
+msgid "Installer l'application Kartotek."
+msgstr "Встановити застосунок Kartotek."
+
+#: src/kartotek_master/templates/info/index.html:135
+msgid "Une question, une suggestion ?"
+msgstr "Питання чи пропозиція?"
+
+#: src/kartotek_master/info/__init__.py:17
+msgid "Informations"
+msgstr "Інформація"
+
+#: src/kartotek_master/info/__init__.py:19
+msgid "KartoTek et cette collection de cartes postales."
+msgstr "KartoTek і ця колекція листівок."
+
+#: src/kartotek_master/templates/submit_server/index.html:7
+msgid "Vous gérez un serveur KartoTek et souhaitez qu'il apparaisse sur la carte et dans la liste des serveurs ? Décrivez-le ci-dessous."
+msgstr "Керуєте сервером KartoTek і хочете, щоб він з'явився на карті та у списку серверів? Опишіть його нижче."
+
+#: src/kartotek_master/templates/submit_server/index.html:22
+msgid "Nom du serveur"
+msgstr "Назва сервера"
+
+#: src/kartotek_master/templates/submit_server/index.html:28
+msgid "URL du serveur"
+msgstr "URL сервера"
+
+#: src/kartotek_master/templates/submit_server/index.html:36
+msgid "Proposer ce serveur"
+msgstr "Запропонувати цей сервер"
+
+#: src/kartotek_master/submit_server/__init__.py:83
+#: src/kartotek_master/submit_server/__init__.py:113
+msgid "Merci, votre proposition a bien été envoyée !"
+msgstr "Дякуємо, вашу пропозицію надіслано!"
+
+#: src/kartotek_master/submit_server/__init__.py:92
+msgid "Le nom du serveur est obligatoire."
+msgstr "Назва сервера обов'язкова."
+
+#: src/kartotek_master/submit_server/__init__.py:94
+msgid "L'URL du serveur est obligatoire."
+msgstr "URL сервера обов'язковий."
+
+#: src/kartotek_master/submit_server/__init__.py:99
+msgid "L'URL n'est pas valide (doit commencer par http:// ou https://)."
+msgstr "URL недійсний (має починатися з http:// або https://)."
+
+#: src/kartotek_master/submit_server/__init__.py:102
+msgid "Une courte description est nécessaire."
+msgstr "Потрібен короткий опис."
+
+#: src/kartotek_master/submit_server/__init__.py:109
+msgid "L'envoi de la proposition a échoué. Réessayez plus tard."
+msgstr "Не вдалося надіслати пропозицію. Спробуйте пізніше."
+
+#: src/kartotek_master/submit_server/__init__.py:121
+msgid "Proposez votre serveur pour l'ajouter à KartoTek."
+msgstr "Запропонуйте свій сервер, щоб додати його до KartoTek."
+

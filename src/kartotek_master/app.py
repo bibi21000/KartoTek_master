@@ -45,6 +45,7 @@ from .limiter import limiter
 from .poller import Poller
 from .seo import bp as seo_bp
 from .status import bp as status_bp
+from .submit_server import bp as submit_server_bp
 
 # Langues prises en charge par l'application (sélection auto via l'en-tête
 # Accept-Language du navigateur, surchargeable avec ?lang=xx).
@@ -221,6 +222,7 @@ def create_app():
     app.register_blueprint(download_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(status_bp)
+    app.register_blueprint(submit_server_bp)
     # /api/v1/points, /api/v1/bounds, /api/v1/nearby, /api/v1/next-update
     # — endpoints géo, servis depuis le cache local (voir kartotek_master.geoapi).
     app.register_blueprint(geoapi_bp)
@@ -302,6 +304,7 @@ def create_app():
             entry = {
                 "name": s.get("name") or s["server_url"],
                 "url": s["server_url"],
+                "description": s.get("description") or "",
                 # Favicon servi par le serveur distant lui-même, à sa racine.
                 # On ne vérifie pas son existence ici (coûteux et non bloquant
                 # côté poller) : le client gère l'absence via l'événement
