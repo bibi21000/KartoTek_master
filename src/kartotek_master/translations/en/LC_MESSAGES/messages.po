@@ -89,50 +89,54 @@ msgstr "Search for a place, an address…"
 msgid "Centrer sur ma position"
 msgstr "Center on my location"
 
-#: src/kartotek_master/templates/index.html:186
-#: src/kartotek_master/templates/index.html:205
+#: src/kartotek_master/templates/index.html:198
+msgid "Aller à"
+msgstr "Go to"
+
+#: src/kartotek_master/templates/index.html:199
+#: src/kartotek_master/templates/index.html:218
 msgid "Aucun point à l'écran"
 msgstr "No points on screen"
 
-#: src/kartotek_master/templates/index.html:190
+#: src/kartotek_master/templates/index.html:203
 msgid "points chargés à l'écran"
 msgstr "points loaded on screen"
 
-#: src/kartotek_master/templates/index.html:202
+#: src/kartotek_master/templates/index.html:215
 msgid "Votre position"
 msgstr "Your location"
 
-#: src/kartotek_master/templates/index.html:203
+#: src/kartotek_master/templates/index.html:216
 msgid "Aucun résultat"
 msgstr "No results"
 
-#: src/kartotek_master/templates/index.html:204
+#: src/kartotek_master/templates/index.html:217
 msgid "Recherche indisponible"
 msgstr "Search unavailable"
 
-#: src/kartotek_master/templates/index.html:206
+#: src/kartotek_master/templates/index.html:219
 #, python-brace-format
 msgid "total en base : {n}"
 msgstr "total in database: {n}"
 
-#: src/kartotek_master/templates/index.html:207
+#: src/kartotek_master/templates/index.html:220
 #, python-brace-format
 msgid "carte n°{id}"
 msgstr "card #{id}"
 
-#: src/kartotek_master/templates/index.html:208
+#: src/kartotek_master/templates/index.html:221
 msgid "lat"
 msgstr "lat"
 
-#: src/kartotek_master/templates/index.html:209
+#: src/kartotek_master/templates/index.html:222
 msgid "lon"
 msgstr "lon"
 
-#: src/kartotek_master/templates/index.html:210
+#: src/kartotek_master/templates/index.html:223
 msgid "serveur"
 msgstr "server"
 
-#: src/kartotek_master/templates/index.html:211
+#: src/kartotek_master/templates/index.html:224
 msgid ""
 "Géolocalisation indisponible : cette page doit être servie en HTTPS (ou "
 "via localhost)."
@@ -140,15 +144,15 @@ msgstr ""
 "Geolocation unavailable: this page must be served over HTTPS (or via "
 "localhost)."
 
-#: src/kartotek_master/templates/index.html:212
+#: src/kartotek_master/templates/index.html:225
 msgid "Géolocalisation refusée par le navigateur."
 msgstr "Geolocation denied by the browser."
 
-#: src/kartotek_master/templates/index.html:213
+#: src/kartotek_master/templates/index.html:226
 msgid "Position indisponible pour le moment."
 msgstr "Location unavailable right now."
 
-#: src/kartotek_master/templates/index.html:214
+#: src/kartotek_master/templates/index.html:227
 msgid "Délai de géolocalisation dépassé."
 msgstr "Geolocation request timed out."
 

@@ -99,6 +99,18 @@
     backdrop-filter:blur(6px);
     overflow:hidden;
     max-height:min(50vh, 360px);
+    display:flex;
+    flex-direction:column;
+  }
+  .servers-panel-title{
+    padding:9px 12px;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
   }
   #servers-list{
     overflow-y:auto;
@@ -183,6 +195,7 @@
 </div>
 
 <div class="servers-panel">
+  <div class="servers-panel-title">{{ _('Aller à') }}</div>
   <div id="servers-list"><div class="empty">{{ _("Aucun point à l'écran") }}</div></div>
 </div>
 
@@ -426,7 +439,7 @@ function renderServersList(serverCounts) {
     row.className = 'server-row';
     row.innerHTML = `
       <span class="swatch" style="background:${color}; color:${color};"></span>
-      <a class="url" href="${safeUrl}/map/" target="_blank" rel="noopener noreferrer" title="${safeUrl}">${displayName}</a>
+      <a class="url" href="${safeUrl}/map/" target="_blank" rel="noopener noreferrer" title="${displayName}">${displayName}</a>
       <span class="count">${info.count}</span>
     `;
     container.appendChild(row);

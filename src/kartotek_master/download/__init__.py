@@ -8,6 +8,7 @@ relatif à la racine du projet ou absolu). Accessible depuis la page
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,7 @@ from pathlib import Path
 import markdown as markdown_lib
 from flask import Blueprint, abort, current_app, render_template, send_from_directory
 from flask_babel import gettext, get_locale
+from flask import send_from_directory
 from werkzeug.utils import secure_filename
 
 from ..limiter import limiter
@@ -259,6 +261,12 @@ def _human_size(num_bytes: int) -> str:
             return f"{size:.1f} {unit}"
         size /= 1024
     return f"{size:.1f} To"
+
+
+@bp.route("/download/images/<path:filename>")
+def download_images(filename):
+    download_dir = _download_dir() / 'images'
+    return send_from_directory(download_dir, filename)
 
 
 @bp.route("/download/")
