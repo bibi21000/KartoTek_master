@@ -1,0 +1,46 @@
+[Unit]
+Description=KartoTek-Master Push Docker Container
+# Only start after Docker is ready
+After=docker.service
+Requires=docker.service
+# Wait for network to be available
+After=network-online.target
+
+[Service]
+Type=simple
+
+# Environment files
+EnvironmentFile=/etc/kartotek/systemd.conf
+EnvironmentFile=/etc/kartotek/master/systemd.conf
+
+# Create the Docker volume if it doesn't exist
+ExecStartPre=/bin/bash -c '/usr/bin/docker volume inspect kartotek_master >/dev/null 2>&1 || /usr/bin/docker volume create kartotek_master'
+
+# Pull the image first if PULL is true/True/1
+ExecStartPre=/bin/bash -c '[ "$PULL" = "true" ] || [ "$PULL" = "1" ] && exec /usr/bin/docker pull "$IMAGE"'
+
+# Start the container in the foreground (no -d flag)
+ExecStart=/usr/bin/docker run \
+  --name kartotek_master \
+  --rm ${DOCKER_OPTS} \
+  -p 8003:8003 \
+  -v kartotek_master:/data \
+  -v ${MOUNT_HTML}:/html \
+  -v ${MOUNT_DOWNLOADS}:/downloads \
+  -v /etc/kartotek/master/:/app/conf \
+  ${IMAGE}
+
+# Gracefully stop the container
+ExecStop=/usr/bin/docker stop -t 30 kartotek_master
+
+# Timeout for start operation
+TimeoutStartSec=60
+# Timeout for stop operation
+TimeoutStopSec=35
+
+# Always restart on failure
+Restart=always
+RestartSec=45
+
+[Install]
+WantedBy=multi-user.target

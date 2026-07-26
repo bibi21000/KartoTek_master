@@ -35,6 +35,7 @@ from flask import Flask, jsonify, render_template, request, session
 from flask_babel import Babel, get_locale
 
 from . import db
+from .capabilities import bp as capabilities_bp
 from .colors import color_for_server
 from .contact import bp as contact_bp
 from .download import bp as download_bp
@@ -43,6 +44,7 @@ from .geoapi import bp as geoapi_bp
 from .info import bp as info_bp
 from .limiter import limiter
 from .poller import Poller
+from .push_api import bp as push_api_bp
 from .seo import bp as seo_bp
 from .status import bp as status_bp
 from .submit_server import bp as submit_server_bp
@@ -218,14 +220,89 @@ def create_app():
     app.config["CLUSTER_ZOOM_THRESHOLD"] = cluster_zoom_threshold
     app.config["MAX_POINTS_RETURNED"] = max_points
 
+    # Notifications push centralisées (registre + envoi FCM/APNs) — voir
+    # kartotek_master.push et kartotek_master.push_api. Section [push]
+    # optionnelle : sans elle, /api/v1/push/register|unregister
+    # fonctionnent quand même (le registre s'écrit en base), mais
+    # /api/v1/push/notify refuse tout appel (503, pas de secret configuré)
+    # et aucun envoi FCM/APNs n'a lieu tant que les credentials ne sont
+    # pas renseignés (voir push._send_fcm/_send_apns, no-op silencieux).
+    if config.has_section("push"):
+        push_cfg = config["push"]
+        app.config["PUSH_MAX_RADIUS_M"] = push_cfg.getfloat("max_radius_m", fallback=5_000.0)
+        app.config["PUSH_NOTIFY_SECRET"] = push_cfg.get("notify_secret") or None
+        app.config["FCM_PROJECT_ID"] = push_cfg.get("fcm_project_id") or None
+        app.config["FCM_SERVICE_ACCOUNT_FILE"] = push_cfg.get("fcm_service_account_file") or None
+        app.config["APNS_KEY_FILE"] = push_cfg.get("apns_key_file") or None
+        app.config["APNS_KEY_ID"] = push_cfg.get("apns_key_id") or None
+        app.config["APNS_TEAM_ID"] = push_cfg.get("apns_team_id") or None
+        app.config["APNS_TOPIC"] = push_cfg.get("apns_topic") or None
+        app.config["APNS_USE_SANDBOX"] = push_cfg.getboolean("apns_use_sandbox", fallback=False)
+        app.config["PUSH_TITLE"] = push_cfg.get(
+            "notification_title", fallback="Nouvelle carte postale à proximité"
+        )
+        if not app.config["PUSH_NOTIFY_SECRET"]:
+            logger.warning(
+                "[push] est configuré mais 'notify_secret' est vide : "
+                "/api/v1/push/notify refusera tout appel (503) tant qu'un "
+                "secret n'est pas défini."
+            )
+    else:
+        app.config.setdefault("PUSH_MAX_RADIUS_M", 5_000.0)
+        app.config.setdefault("PUSH_NOTIFY_SECRET", None)
+
+    # Gouvernance de version pour le client mobile (voir
+    # kartotek_master.capabilities -> /api/v1/capabilities) : interrogé
+    # une seule fois au démarrage de l'app, avant même la sélection
+    # d'un serveur KartoTek Web, sur le même principe que la section
+    # [app_version] de postcards.conf côté flpostcards. Section
+    # optionnelle : sans elle, "min_supported_client" reste nul (aucune
+    # version minimale imposée) et "force_update.required" vaut false.
+    #
+    # Exemple de section dans config.conf :
+    #   [app_version]
+    #   api_version = 1.3
+    #   min_supported_client = 1.0.0
+    #   recommended_client = 1.4.0
+    #   force_update_required = false
+    #   force_update_reason =
+    #   store_url_ios = https://apps.apple.com/app/idXXXXXXXXX
+    #   store_url_android = https://play.google.com/store/apps/details?id=eu.kartotek.mobile
+    if config.has_section("app_version"):
+        av_cfg = config["app_version"]
+        app.config["API_VERSION_CURRENT"] = av_cfg.get("api_version") or None
+        app.config["MIN_SUPPORTED_CLIENT"] = av_cfg.get("min_supported_client") or None
+        app.config["RECOMMENDED_CLIENT"] = av_cfg.get("recommended_client") or None
+        app.config["FORCE_UPDATE_REQUIRED"] = av_cfg.getboolean(
+            "force_update_required", fallback=False
+        )
+        app.config["FORCE_UPDATE_REASON"] = av_cfg.get("force_update_reason") or None
+        app.config["STORE_URL_IOS"] = av_cfg.get("store_url_ios") or None
+        app.config["STORE_URL_ANDROID"] = av_cfg.get("store_url_android") or None
+    else:
+        app.config.setdefault("API_VERSION_CURRENT", None)
+        app.config.setdefault("MIN_SUPPORTED_CLIENT", None)
+        app.config.setdefault("RECOMMENDED_CLIENT", None)
+        app.config.setdefault("FORCE_UPDATE_REQUIRED", False)
+        app.config.setdefault("FORCE_UPDATE_REASON", None)
+        app.config.setdefault("STORE_URL_IOS", None)
+        app.config.setdefault("STORE_URL_ANDROID", None)
+
     app.register_blueprint(info_bp)
     app.register_blueprint(download_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(status_bp)
     app.register_blueprint(submit_server_bp)
+    # /api/v1/capabilities — gouvernance de version pour l'app mobile,
+    # interrogé une seule fois au démarrage avant la sélection d'un
+    # serveur (voir kartotek_master.capabilities).
+    app.register_blueprint(capabilities_bp)
     # /api/v1/points, /api/v1/bounds, /api/v1/nearby, /api/v1/next-update
     # — endpoints géo, servis depuis le cache local (voir kartotek_master.geoapi).
     app.register_blueprint(geoapi_bp)
+    # /api/v1/push/register, /unregister, /notify — registre centralisé
+    # des tokens push + envoi FCM/APNs (voir kartotek_master.push_api).
+    app.register_blueprint(push_api_bp)
     # Sans préfixe : les fichiers de vérification de propriété (Google
     # Search Console, Bing...) doivent être servis exactement à la racine
     # du domaine, tout comme /sitemap.xml et /robots.txt.

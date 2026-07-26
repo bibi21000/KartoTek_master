@@ -13,11 +13,14 @@ Choix de conception, pensés pour la robustesse et une faible empreinte mémoire
   regroupent les points en clusters (agrégation SQL) quand on est dézoomé.
 """
 
+import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _local = threading.local()
 _db_path = None
@@ -124,12 +127,55 @@ def init_db():
                 cur.execute("ALTER TABLE gps_points ADD COLUMN external_id TEXT;")
             except sqlite3.OperationalError:
                 pass  # la colonne existe déjà
+            # Index unique (partiel : ignore les lignes sans external_id,
+            # ancien format) nécessaire à l'UPSERT de upsert_points() —
+            # c'est lui qui permet de mettre à jour un point existant
+            # (nouvelles coordonnées) sans réinitialiser sa colonne
+            # created_at, indispensable au filtre `since` de
+            # /api/v1/nearby (voir geoapi.nearby et
+            # docs/07-PUSH_NOTIFICATIONS.md pour le principe similaire
+            # côté push). Si l'index ne peut pas être créé (base
+            # existante avec des doublons résiduels, cas qui ne devrait
+            # plus se produire depuis que insert_points dédupliquait déjà
+            # par page), on continue sans lui : upsert_points retombe
+            # alors sur un simple INSERT (voir son commentaire).
+            try:
+                cur.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_gps_points_server_external "
+                    "ON gps_points(server_url, external_id) WHERE external_id IS NOT NULL;"
+                )
+            except sqlite3.Error as exc:
+                logger.warning(
+                    "Impossible de créer idx_gps_points_server_external (%s) — "
+                    "le filtre `since` de /api/v1/nearby restera dégradé "
+                    "(created_at pourra être réinitialisé à chaque resynchronisation) "
+                    "tant que cette base contiendra des doublons (server_url, external_id).",
+                    exc,
+                )
             # Index composites pour accélérer les filtres bbox (WHERE lat BETWEEN.. AND lon BETWEEN..)
             cur.execute("CREATE INDEX IF NOT EXISTS idx_gps_lat ON gps_points(lat);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_gps_lon ON gps_points(lon);")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_gps_server ON gps_points(server_url);")
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_gps_lat_lon_server ON gps_points(lat, lon, server_url);"
+            )
+            # Registre centralisé des tokens push (FCM/APNs) — voir
+            # kartotek_master.push. Un enregistrement par appareil (clé =
+            # token), mis à jour à chaque POST /api/v1/push/register.
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS push_registrations (
+                    token       TEXT PRIMARY KEY,
+                    platform    TEXT NOT NULL,
+                    lat         REAL NOT NULL,
+                    lon         REAL NOT NULL,
+                    radius_m    REAL NOT NULL,
+                    updated_at  TEXT NOT NULL
+                );
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_push_lat_lon ON push_registrations(lat, lon);"
             )
 
 
@@ -211,25 +257,120 @@ def update_server_bounds(server_url: str, min_lat: float, max_lat: float, min_lo
         )
 
 
-def insert_points(server_url: str, points):
+def upsert_points(server_url: str, points):
     """
     points : itérable de (external_id, lat, lon). `external_id` (l'identifiant
     de la carte côté serveur distant) peut être `None` si non fourni.
-    Insertion en une seule transaction pour limiter les I/O disque, même si
-    la page contient des centaines d'éléments.
+
+    UPSERT (INSERT ... ON CONFLICT DO UPDATE) plutôt qu'un simple INSERT :
+    si un point avec le même (server_url, external_id) existe déjà, seules
+    ses coordonnées (lat/lon) sont mises à jour — sa colonne `created_at`
+    (date de première apparition dans le cache du master) reste INCHANGÉE.
+
+    C'est cette préservation qui rend possible le filtre `since` de
+    /api/v1/nearby (voir geoapi.nearby, pour le geofencing en arrière-plan
+    de l'appli mobile) : sans elle, la moindre resynchronisation — même
+    déclenchée par l'ajout d'une seule carte ailleurs sur le même serveur,
+    puisque le dbid change pour la collection entière — aurait
+    réinitialisé la date de "première apparition" de TOUS les points de
+    ce serveur, rendant "depuis when() a-t-on du nouveau" invérifiable.
+
+    Les points sans `external_id` (ancien format d'API, avant l'ajout de
+    l'id de carte à /api/v1/gps) ne peuvent pas être dédupliqués de façon
+    fiable sur ce critère : ils sont toujours insérés tels quels, comme
+    avant l'introduction de l'upsert. Idem si l'index unique nécessaire à
+    l'upsert n'a pas pu être créé au démarrage (voir configure()) : dans
+    ce cas de repli, tous les points sont insérés en INSERT simple.
+
+    Insertion en une seule transaction (executemany) pour limiter les I/O
+    disque, même si la page contient des centaines d'éléments.
     """
     if not points:
         return 0
-    rows = [
-        (server_url, external_id, float(lat), float(lon))
-        for external_id, lat, lon in points
-    ]
+
+    with_id = [(server_url, external_id, float(lat), float(lon)) for external_id, lat, lon in points if external_id is not None]
+    without_id = [(server_url, None, float(lat), float(lon)) for external_id, lat, lon in points if external_id is None]
+
     with get_cursor(commit=True) as cur:
-        cur.executemany(
-            "INSERT INTO gps_points (server_url, external_id, lat, lon) VALUES (?, ?, ?, ?)",
-            rows,
+        if with_id:
+            try:
+                cur.executemany(
+                    """
+                    INSERT INTO gps_points (server_url, external_id, lat, lon)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(server_url, external_id) WHERE external_id IS NOT NULL DO UPDATE SET
+                        lat = excluded.lat,
+                        lon = excluded.lon
+                    """,
+                    with_id,
+                )
+            except sqlite3.OperationalError:
+                # Repli : l'index unique requis par ON CONFLICT n'existe
+                # pas (voir configure()) — insertion simple, created_at
+                # ne sera alors pas préservé lors des resynchronisations
+                # (le filtre `since` de /api/v1/nearby restera dégradé
+                # jusqu'à ce que l'index puisse être créé).
+                cur.executemany(
+                    "INSERT INTO gps_points (server_url, external_id, lat, lon) VALUES (?, ?, ?, ?)",
+                    with_id,
+                )
+        if without_id:
+            cur.executemany(
+                "INSERT INTO gps_points (server_url, external_id, lat, lon) VALUES (?, ?, ?, ?)",
+                without_id,
+            )
+        return len(with_id) + len(without_id)
+
+
+def delete_stale_points_for_server(server_url: str, keep_external_ids):
+    """
+    Supprime les points d'un serveur dont l'external_id n'est PAS dans
+    `keep_external_ids` — cartes disparues du serveur distant depuis la
+    dernière synchronisation complète (fusion de doublons, suppression,
+    ...). Les points sans external_id (ancien format) ne sont jamais
+    supprimés par cette fonction, faute de clé fiable pour les identifier
+    individuellement.
+
+    IMPORTANT : à n'appeler qu'après une synchronisation COMPLÈTE de
+    /api/v1/gps (toutes les pages parcourues jusqu'au bout). L'appeler
+    après une synchronisation partielle (erreur réseau en cours de
+    pagination, garde-fou de pagination atteint, ...) supprimerait à tort
+    des points simplement pas encore revus dans cette page — voir
+    Poller._sync_server qui ne l'appelle que si `_download_all_points` a
+    signalé une synchronisation complète.
+    """
+    keep_ids = {str(i) for i in keep_external_ids if i is not None}
+
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT DISTINCT external_id FROM gps_points "
+            "WHERE server_url = ? AND external_id IS NOT NULL",
+            (server_url,),
         )
-        return cur.rowcount
+        existing_ids = {row["external_id"] for row in cur.fetchall()}
+
+    stale_ids = list(existing_ids - keep_ids)
+    if not stale_ids:
+        return 0
+
+    # Chunké pour rester sous la limite de paramètres SQLite (~999), même
+    # avec des collections de plusieurs milliers de cartes. Contrairement
+    # à un DELETE ... NOT IN (chunk) qu'il serait incorrect de chunker
+    # (chaque chunk NOT IN ne "voit" pas les ids des autres chunks), un
+    # DELETE ... IN (chunk) est sûr à chunker : chaque appel ne supprime
+    # que les ids explicitement listés dans ce chunk.
+    deleted = 0
+    chunk_size = 500
+    with get_cursor(commit=True) as cur:
+        for i in range(0, len(stale_ids), chunk_size):
+            chunk = stale_ids[i:i + chunk_size]
+            placeholders = ",".join("?" * len(chunk))
+            cur.execute(
+                f"DELETE FROM gps_points WHERE server_url = ? AND external_id IN ({placeholders})",
+                [server_url, *chunk],
+            )
+            deleted += cur.rowcount
+    return deleted
 
 
 def delete_points_for_server(server_url: str):
@@ -288,13 +429,22 @@ def list_known_server_urls():
         return {r["server_url"] for r in cur.fetchall()}
 
 
-def query_points_for_servers(servers, min_lat=None, max_lat=None, min_lon=None, max_lon=None, limit=None):
+def query_points_for_servers(servers, min_lat=None, max_lat=None, min_lon=None, max_lon=None, limit=None, since=None):
     """
     Points GPS (id, external_id, lat, lon, server_url) déjà synchronisés
     en base par le poller, filtrés par une liste de server_url (aucun
-    filtre si `servers` est vide/None : tous les serveurs connus) et,
-    optionnellement, par une bounding box (pré-filtre bon marché avant un
-    calcul de distance haversine précis fait en Python par l'appelant).
+    filtre si `servers` est vide/None : tous les serveurs connus),
+    optionnellement par une bounding box (pré-filtre bon marché avant un
+    calcul de distance haversine précis fait en Python par l'appelant),
+    et optionnellement par `since` (timestamp UNIX) pour ne renvoyer que
+    les points apparus dans le cache du master à partir de cette date
+    (voir upsert_points : created_at n'est mis à jour QUE lors de la
+    première apparition d'un point, pas à chaque resynchronisation).
+
+    Sert de base au filtre `since` de /api/v1/nearby (geoapi.nearby),
+    pensé pour le geofencing en arrière-plan de l'appli mobile : sans
+    lui, chaque réveil du geofencing devrait retélécharger l'intégralité
+    des cartes du rayon de recherche plutôt que seulement les nouvelles.
 
     Ne fait jamais d'appel réseau : c'est la base locale (déjà tenue à
     jour par kartotek_master.poller) qui sert de cache pour
@@ -313,6 +463,9 @@ def query_points_for_servers(servers, min_lat=None, max_lat=None, min_lon=None, 
     if min_lon is not None:
         clauses.append("lon BETWEEN ? AND ?")
         params.extend([min_lon, max_lon])
+    if since is not None:
+        clauses.append("created_at >= datetime(?, 'unixepoch')")
+        params.append(int(since))
 
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     sql = f"SELECT id, external_id, lat, lon, server_url FROM gps_points {where}"
@@ -323,6 +476,74 @@ def query_points_for_servers(servers, min_lat=None, max_lat=None, min_lon=None, 
     with get_cursor() as cur:
         cur.execute(sql, params)
         return [dict(r) for r in cur.fetchall()]
+
+
+def upsert_push_registration(token: str, platform: str, lat: float, lon: float, radius_m: float):
+    """
+    Enregistre ou remplace l'inscription push d'un appareil. Une
+    ré-inscription avec le même token écrase entièrement l'entrée
+    précédente (position/rayon peuvent avoir changé depuis).
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO push_registrations (token, platform, lat, lon, radius_m, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(token) DO UPDATE SET
+                platform = excluded.platform,
+                lat = excluded.lat,
+                lon = excluded.lon,
+                radius_m = excluded.radius_m,
+                updated_at = excluded.updated_at
+            """,
+            (token, platform, lat, lon, radius_m, now),
+        )
+
+
+def delete_push_registration(token: str) -> bool:
+    """Retourne True si une ligne existait et a été supprimée."""
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM push_registrations WHERE token = ?", (token,))
+        return cur.rowcount > 0
+
+
+def delete_push_registrations(tokens):
+    """Suppression en lot (tokens signalés invalides par FCM/APNs)."""
+    tokens = list(tokens)
+    if not tokens:
+        return
+    with get_cursor(commit=True) as cur:
+        cur.executemany("DELETE FROM push_registrations WHERE token = ?", [(t,) for t in tokens])
+
+
+def query_push_registrations_near(lat: float, lon: float, max_radius_m: float):
+    """
+    Pré-filtre bon marché en SQL (bounding box ~ max_radius_m autour de
+    (lat, lon), converti grossièrement en degrés) avant un calcul
+    haversine précis fait en Python par l'appelant (voir
+    kartotek_master.push._registrations_in_range) — même logique que
+    query_points_for_servers pour la carte.
+    """
+    # 1 degré de latitude ~= 111 km partout : marge simple et suffisante
+    # pour un pré-filtre (pas besoin d'exactitude ici, juste de réduire
+    # le nombre de lignes avant le calcul précis).
+    deg_margin = (max_radius_m / 1000.0) / 111.0
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT token, platform, lat, lon, radius_m FROM push_registrations
+            WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?
+            """,
+            (lat - deg_margin, lat + deg_margin, lon - deg_margin, lon + deg_margin),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+
+def count_push_registrations() -> int:
+    with get_cursor() as cur:
+        cur.execute("SELECT COUNT(*) AS c FROM push_registrations")
+        return cur.fetchone()["c"]
 
 
 def query_points_clustered(min_lon, min_lat, max_lon, max_lat, precision, limit):

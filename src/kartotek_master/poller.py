@@ -246,11 +246,26 @@ class Poller:
             "Changement détecté pour %s (%s -> %s), synchronisation des points GPS...",
             base_url, current_dbid, new_dbid,
         )
-        # On repart d'une base propre à chaque resynchronisation complète :
-        # sans ça, les mêmes cartes seraient réinsérées à l'identique à
-        # chaque changement de dbid, dupliquant les données au fil du temps.
-        db.delete_points_for_server(base_url)
-        total_inserted = self._download_all_points(base_url)
+        # Depuis l'introduction de upsert_points() (voir db.py), on ne
+        # repart plus d'une base vidée à chaque resynchronisation : les
+        # points existants sont mis à jour sur place (created_at
+        # préservé, nécessaire au filtre `since` de /api/v1/nearby), et
+        # seules les cartes réellement disparues du serveur distant sont
+        # supprimées, une fois la synchronisation confirmée complète
+        # (voir _download_all_points -> completed).
+        total_inserted, seen_ids, completed = self._download_all_points(base_url)
+        if completed:
+            removed = db.delete_stale_points_for_server(base_url, seen_ids)
+            if removed:
+                logger.info("%s : %s point(s) obsolète(s) supprimé(s) (cartes disparues)", base_url, removed)
+        else:
+            logger.warning(
+                "%s : synchronisation incomplète (erreur réseau ou garde-fou "
+                "atteint en cours de pagination) — les points déjà à jour "
+                "sont conservés, mais le nettoyage des cartes disparues est "
+                "sauté par prudence pour ce cycle (retenté au prochain poll).",
+                base_url,
+            )
         db.update_server_dbid(base_url, new_dbid, total_inserted, name=name, description=description)
         logger.info("%s : %s points synchronisés", base_url, total_inserted)
 
@@ -262,6 +277,7 @@ class Poller:
         total_inserted = 0
         pages_fetched = 0
         seen_ids = set()
+        completed = False
         duplicates_skipped = 0
         cards_without_coords = 0
         last_known_total = None
@@ -318,6 +334,7 @@ class Poller:
 
             cards, total = self._extract_cards(payload)
             if not cards:
+                completed = True
                 break
             if total is not None:
                 last_known_total = total
@@ -344,12 +361,13 @@ class Poller:
                 points.append((external_id, lat, lon))
 
             if points:
-                db.insert_points(base_url, points)
+                db.upsert_points(base_url, points)
                 total_inserted += len(points)
 
             if use_cursor:
                 next_after_id = payload.get("next_after_id")
                 if next_after_id is None:
+                    completed = True
                     break
                 cursor_after_id = next_after_id
             else:
@@ -369,11 +387,13 @@ class Poller:
                             self.page_size, total, legacy_start,
                         )
                     if legacy_start >= total:
+                        completed = True
                         break
                 elif len(cards) < self.page_size:
                     # Pas de `total` fiable (ancien format d'API) : on
                     # s'arrête dès qu'une page renvoie moins d'éléments que
                     # demandé.
+                    completed = True
                     break
 
         mode_label = "curseur (after_id)" if use_cursor else "legacy (start/offset, à migrer côté serveur)"
@@ -415,7 +435,7 @@ class Poller:
                 "serveur distant, mais cette fois des cartes 'sautent' hors "
                 "de la pagination au lieu d'y être dupliquées.",
             )
-        return total_inserted
+        return total_inserted, seen_ids, completed
 
     def _prune_removed_servers(self, servers):
         """

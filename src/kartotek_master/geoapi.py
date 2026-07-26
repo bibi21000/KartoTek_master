@@ -28,6 +28,7 @@ SQL locales — au prix d'une fraîcheur limitée à l'intervalle du poller
 from __future__ import annotations
 
 import math
+import time
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -213,16 +214,35 @@ def nearby():
       lat, lon : position (float)
       radius   : rayon de recherche en mètres (float, max 50 000)
       servers  : (optionnel) server_url séparés par des virgules
+      since    : (optionnel) timestamp UNIX — ne renvoie que les cartes
+                 apparues dans le cache du master à partir de cette date
+                 (voir db.upsert_points : created_at n'est mis à jour
+                 QU'à la première apparition d'un point, pas à chaque
+                 resynchronisation du poller). Pensé pour le geofencing
+                 en arrière-plan (CLCircularRegion / Geofencing API) :
+                 un réveil du geofencing peut passer le `server_time`
+                 reçu au dernier appel plutôt que de retélécharger
+                 l'intégralité des cartes du rayon à chaque fois.
 
     Réponse JSON :
       {
         "count": N,
         "servers_used": [...], "unknown_servers": [...],
+        "since": 1234567890 | null,     -- valeur de `since` effectivement appliquée
+        "server_time": 1234567900,      -- horloge du master au moment de la requête ;
+                                            à repasser comme `since` au prochain appel
+                                            (évite tout écart d'horloge avec le téléphone)
         "cards": [
           {"id", "server_url", "server_name", "color", "lat", "lon", "distance_m"},
           ...
         ]  -- triées par distance croissante
       }
+
+    NB : `since` filtre sur la date de première apparition dans LE CACHE
+    DU MASTER, pas sur la date d'ajout réelle côté serveur d'origine —
+    décalée d'au plus un cycle de poller (15 min par défaut) par rapport
+    à la réalité, comme le reste de ce cache. Suffisant pour éviter de
+    retélécharger des cartes déjà vues, pas destiné à un usage temps réel.
     """
     try:
         lat = float(request.args["lat"])
@@ -231,13 +251,21 @@ def nearby():
     except (KeyError, ValueError):
         return jsonify({"error": "lat, lon et radius sont obligatoires (float)"}), 400
 
+    since = None
+    if "since" in request.args:
+        try:
+            since = int(float(request.args["since"]))
+        except ValueError:
+            return jsonify({"error": "since doit être un timestamp UNIX (entier)"}), 400
+
     requested, unknown = _resolve_servers()
     states_by_url = {s["server_url"]: s for s in db.list_servers_state()}
     servers_used = requested or list(states_by_url.keys())
 
     min_lat, max_lat, min_lon, max_lon = _bbox_for_radius(lat, lon, radius)
     candidates = db.query_points_for_servers(
-        servers_used, min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon
+        servers_used, min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
+        since=since,
     )
 
     results = []
@@ -262,6 +290,8 @@ def nearby():
         "count": len(results),
         "servers_used": servers_used,
         "unknown_servers": unknown,
+        "since": since,
+        "server_time": int(time.time()),
         "cards": results,
     })
 

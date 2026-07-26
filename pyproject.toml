@@ -18,6 +18,9 @@ dependencies = [
     "flask-limiter",
     "Markdown",
     "redis",
+    "PyJWT[crypto]",
+    "google-auth",
+    "httpx[http2]",
 ]
 
 [project.optional-dependencies]
@@ -37,7 +40,7 @@ kartotek-master = "kartotek_master.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-kartotek_master = ["templates/**/*.html", "templates/**/*.xml", "static/**/*", "translations/**/*.mo"]
+kartotek_master = ["templates/**/*.html", "templates/**/*.xml", "static/**/*", "translations/**/*.mo", "deprecations.json"]
 
 [tool.ruff]
 line-length = 110
