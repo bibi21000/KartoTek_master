@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% set header_logo_href = url_for('index') %}
+
+{% block extra_head %}
+<style>
+  main.page{ padding-top: 108px; max-width: 640px; }
+  .privacy-updated{ color: var(--text-dim); font-size: 13px; margin-top: -8px; }
+  main.page h2{
+    font-size: 16px; margin-top: 32px; margin-bottom: 8px;
+    border-bottom: 1px solid var(--line); padding-bottom: 6px;
+  }
+  main.page h3{ font-size: 14.5px; color: var(--text-main); margin-top: 20px; margin-bottom: 6px; }
+  main.page p{ color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>{{ page_title }}</h1>
+
+{% if last_updated %}
+<p class="privacy-updated">
+  {{ _("Dernière mise à jour : %(date)s", date=last_updated) }}
+</p>
+{% endif %}
+
+<p>
+  {{ _("kartotek.eu est l'annuaire et le point d'entrée du réseau "
+       "KartoTek : il liste les sites indépendants (chacun sa propre "
+       "collection de cartes postales), affiche une carte agrégée, et "
+       "gère de façon centralisée le registre des notifications push "
+       "utilisé par l'application mobile. Cette page décrit les "
+       "données traitées par kartotek.eu lui-même.") }}
+</p>
+
+<h2>{{ _("Responsable de ce site") }}</h2>
+<p>
+  {{ _("kartotek.eu est géré par : %(name)s.", name=operator_name) }}
+  {% if contact_email %}
+    {{ _("Contact : %(email)s.", email=contact_email) }}
+  {% else %}
+    {{ _("Aucune adresse de contact n'est publiée pour le moment ; "
+         "utilisez le formulaire de la page « Référencer mon "
+         "serveur » pour toute question relative aux données.") }}
+  {% endif %}
+</p>
+
+<h2>{{ _("Notifications push") }}</h2>
+<p>
+  {{ _("Quand vous activez les notifications dans l'application "
+       "mobile, un identifiant technique (« token ») propre à votre "
+       "appareil est enregistré ici, avec la plateforme (Android/iOS), "
+       "une position approximative et un rayon de recherche, afin de "
+       "savoir quand vous prévenir qu'une nouvelle carte postale est "
+       "disponible à proximité (POST /api/v1/push/register). Vous "
+       "pouvez supprimer cet enregistrement à tout moment depuis "
+       "l'application (POST /api/v1/push/unregister) ; un token qui "
+       "n'est plus valide (désinstallation de l'app, changement de "
+       "téléphone) est aussi supprimé automatiquement lorsqu'Apple ou "
+       "Google nous signale son invalidité.") }}
+</p>
+<p>
+  {{ _("L'envoi effectif des notifications passe par les services "
+       "d'Apple (APNs) et/ou Google (Firebase Cloud Messaging) : ces "
+       "sociétés reçoivent le token nécessaire à l'envoi, selon leurs "
+       "propres conditions d'utilisation respectives, mais ne "
+       "reçoivent ni votre position ni votre identité.") }}
+  {% if not (fcm_configured or apns_configured) %}
+    {{ _("Sur ce déploiement, aucun des deux services n'est "
+         "actuellement configuré : les tokens sont enregistrés mais "
+         "aucune notification n'est réellement envoyée.") }}
+  {% endif %}
+</p>
+<p>
+  {{ _("Chaque site KartoTek (ex. server1.kartotek.eu) ne fait que "
+       "signaler « une nouvelle carte a été ajoutée à telle position » "
+       "à kartotek.eu, via un appel interne protégé par un secret "
+       "partagé — il ne reçoit jamais lui-même votre token ni votre "
+       "position exacte.") }}
+</p>
+
+<h2>{{ _("Liste des serveurs et carte agrégée") }}</h2>
+<p>
+  {{ _("kartotek.eu interroge périodiquement chaque site du réseau "
+       "(bounds, capacités déclarées) pour construire la liste des "
+       "serveurs et la carte agrégée. Ces informations sont publiques "
+       "et ne concernent pas des personnes.") }}
+</p>
+
+<h2>{{ _("Formulaires (contact, référencement de serveur)") }}</h2>
+<p>
+  {{ _("Si vous utilisez le formulaire de contact ou le formulaire de "
+       "référencement d'un nouveau serveur, les informations saisies "
+       "(nom, email, message ou URL du site proposé) sont transmises "
+       "par email à l'équipe qui exploite kartotek.eu, uniquement pour "
+       "vous répondre ou étudier votre demande.") }}
+</p>
+
+{% if matomo_enabled %}
+<h2>{{ _("Mesure d'audience") }}</h2>
+<p>
+  {{ _("Ce site utilise Matomo pour mesurer la fréquentation des "
+       "pages web (pas de l'application mobile), hébergé par l'équipe "
+       "qui exploite kartotek.eu, sans transmission à un tiers "
+       "publicitaire.") }}
+</p>
+{% endif %}
+
+<h2>{{ _("Vos droits") }}</h2>
+<p>
+  {{ _("Vous pouvez demander la suppression de votre token push à tout "
+       "moment depuis l'application. Pour toute autre demande d'accès, "
+       "de rectification ou de suppression, contactez l'équipe qui "
+       "exploite kartotek.eu%(via_email)s.",
+       via_email=(_(" à %(email)s", email=contact_email) if contact_email else "")) }}
+</p>
+
+<h2>{{ _("Autres sites du réseau KartoTek") }}</h2>
+<p>
+  {{ _("Les comptes gestionnaires, les repérages de terrain et les "
+       "photos envoyées pour « cartes similaires » sont gérés "
+       "individuellement par chaque site KartoTek (ex. "
+       "server1.kartotek.eu), pas par kartotek.eu. Reportez-vous à la "
+       "politique de confidentialité du site concerné pour ces "
+       "données.") }}
+</p>
+
+<h2>{{ _("Absence de sous-traitance publicitaire") }}</h2>
+<p>
+  {{ _("kartotek.eu ne vend ni ne partage vos données avec des "
+       "annonceurs ou courtiers en données, en dehors de la "
+       "transmission strictement nécessaire à Apple/Google pour "
+       "l'envoi des notifications que vous avez demandées.") }}
+</p>
+{% endblock %}
