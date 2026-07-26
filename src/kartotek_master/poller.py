@@ -41,8 +41,27 @@ Poller en arrière-plan.
       {"count": 42, "bounds": {"min_lat":.., "max_lat":.., "min_lon":.., "max_lon":..}}
 
   `count` n'est volontairement pas exploité.
+- À CHAQUE cycle (contrairement aux bounds, indépendamment d'un
+  changement de dbid) : GET /api/v1/capabilities, mis en cache tel quel
+  (JSON brut) dans servers_state.capabilities_json. Une capability peut
+  changer sans qu'aucune carte ne soit ajoutée/modifiée (activation de
+  similar_search, premier compte manager créé, min_supported_client
+  relevé, ...), donc contrairement aux bounds on ne peut pas se
+  contenter de ne la réinterroger qu'au changement de dbid. Exposé par
+  /api/v1/servers (kartotek_master.app) pour que l'app mobile n'ait pas
+  à interroger /api/v1/capabilities sur chaque serveur individuellement
+  avant de savoir lequel proposer pour "similaires" ou pour l'écran
+  "ici".
 - Toute erreur réseau sur un serveur est loguée et n'empêche pas de
   traiter les autres serveurs, ni les prochains cycles (robustesse).
+- Indépendamment de la synchronisation des serveurs : purge périodique
+  (au plus une fois par `push_purge_interval_hours`, 24h par défaut) des
+  inscriptions push (kartotek_master.push_registrations) jamais
+  renouvelées depuis `push_stale_after_days` (config [push], 180 par
+  défaut, voir db.purge_stale_push_registrations). Réutilise ce thread
+  de fond plutôt que d'en créer un dédié : le coût est négligeable (une
+  seule requête DELETE indexée) et la cadence n'a pas besoin d'être plus
+  fine qu'une fois par jour.
 """
 
 import json
@@ -70,6 +89,16 @@ class Poller:
         self.timeout = config.getfloat("api", "request_timeout_seconds", fallback=10)
         self.retry_attempts = config.getint("api", "retry_attempts", fallback=3)
         self.retry_backoff = config.getfloat("api", "retry_backoff_seconds", fallback=2)
+        # Purge des inscriptions push mortes (voir _purge_stale_push_registrations
+        # ci-dessous) : indépendante des sections [polling]/[api], donc
+        # tolère l'absence totale de la section [push] (configparser
+        # renvoie alors le fallback, y compris quand la section elle-même
+        # n'existe pas).
+        self.push_stale_after_days = config.getfloat("push", "stale_after_days", fallback=180.0)
+        self.push_purge_interval_seconds = (
+            config.getfloat("push", "purge_interval_hours", fallback=24.0) * 3600
+        )
+        self._last_push_purge_monotonic = 0.0
         self._stop_event = threading.Event()
         self._thread = None
 
@@ -213,8 +242,54 @@ class Poller:
 
         db.update_server_bounds(base_url, min_lat, max_lat, min_lon, max_lon)
 
+    def _fetch_capabilities(self, base_url):
+        """
+        Récupère GET /api/v1/capabilities d'un serveur et le met en cache
+        tel quel (JSON brut) via db.update_server_capabilities.
+
+        Appelée à CHAQUE cycle, contrairement à _fetch_bounds : une
+        capability peut changer indépendamment du contenu de la
+        collection (donc indépendamment du dbid), voir la docstring du
+        module. Le coût est négligeable : /api/v1/capabilities ne touche
+        ni disque ni base côté flpostcards (voir sa docstring), et le
+        serveur l'autorise explicitement à 30 req/min — très au-dessus
+        de la fréquence du poller (un appel toutes les
+        `interval_minutes`, 15 min par défaut).
+
+        Comme _fetch_bounds : une erreur (réseau, JSON invalide, serveur
+        trop ancien qui ne connaît pas encore cette route) est loguée en
+        warning mais n'interrompt jamais la synchronisation des points
+        GPS de ce serveur, ni le traitement des autres serveurs. Le
+        cache précédent (le cas échéant) est simplement conservé tel
+        quel jusqu'au prochain cycle réussi — /api/v1/servers doit donc
+        traiter capabilities_updated_at comme une fraîcheur potentiellement
+        ancienne, jamais comme une garantie de disponibilité actuelle.
+        """
+        capabilities_url = f"{base_url}/api/v1/capabilities"
+        try:
+            resp = self._request_with_retry(capabilities_url)
+        except requests.RequestException as exc:
+            logger.warning("Impossible de récupérer les capabilities de %s : %s", base_url, exc)
+            return
+
+        try:
+            payload = resp.json()
+        except ValueError:
+            logger.warning("Réponse capabilities non-JSON depuis %s", capabilities_url)
+            return
+
+        if not isinstance(payload, dict):
+            logger.warning("Réponse capabilities invalide depuis %s : %r", capabilities_url, payload)
+            return
+
+        db.update_server_capabilities(base_url, json.dumps(payload))
+
     # ------------------------------------------------------------- workflow
     def _sync_server(self, base_url, name, description=""):
+        # Indépendant du dbid (voir _fetch_capabilities) : toujours
+        # rafraîchi, y compris quand rien n'a changé côté cartes.
+        self._fetch_capabilities(base_url)
+
         dbid_url = f"{base_url}/api/v1/dbid"
         try:
             resp = self._request_with_retry(dbid_url)
@@ -454,6 +529,40 @@ class Poller:
             except Exception:
                 logger.exception("Échec de la suppression des données de %s", url)
 
+    def _purge_stale_push_registrations(self):
+        """
+        Supprime les inscriptions push (kartotek_master.push_registrations)
+        jamais renouvelées depuis push_stale_after_days, au plus une fois
+        toutes les push_purge_interval_seconds — indépendant de
+        l'intervalle de synchronisation des serveurs (interval_minutes),
+        qui est généralement bien plus court (15 min par défaut) que ce
+        dont a besoin une purge basée sur des jours.
+
+        Une erreur ici (base verrouillée, etc.) est loguée mais
+        n'interrompt jamais le cycle du poller — retentée au prochain
+        passage, comme le reste des opérations non critiques de cette
+        classe.
+        """
+        now = time.monotonic()
+        if now - self._last_push_purge_monotonic < self.push_purge_interval_seconds:
+            return
+        self._last_push_purge_monotonic = now
+        try:
+            removed = db.purge_stale_push_registrations(self.push_stale_after_days)
+        except Exception:
+            logger.exception("Échec de la purge des inscriptions push obsolètes")
+            return
+        if removed:
+            logger.info(
+                "%s inscription(s) push jamais renouvelée(s) depuis %.0f jour(s), supprimée(s)",
+                removed, self.push_stale_after_days,
+            )
+        else:
+            logger.debug(
+                "Purge des inscriptions push : rien à supprimer (seuil=%.0f jour(s))",
+                self.push_stale_after_days,
+            )
+
     def _run_once(self):
         servers = self._load_servers()
         if servers is None:
@@ -471,6 +580,10 @@ class Poller:
             except Exception:
                 # Filet de sécurité : un bug sur un serveur ne doit jamais tuer le thread
                 logger.exception("Erreur inattendue lors du traitement de %s", server["url"])
+
+        # Indépendant des serveurs traités ci-dessus : voir la docstring
+        # de _purge_stale_push_registrations pour la cadence.
+        self._purge_stale_push_registrations()
 
     def _loop(self):
         if self._stop_event.wait(self.initial_delay):

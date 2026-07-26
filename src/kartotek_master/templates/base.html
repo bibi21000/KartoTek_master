@@ -80,6 +80,19 @@
   {% block content %}{% endblock %}
 </main>
 
+<footer class="site-footer">
+  <a href="{{ url_for('privacy.index') }}">{{ _("Politique de confidentialité") }}</a>
+</footer>
+
+<style>
+  .site-footer{
+    text-align:center; padding: 24px 24px 40px;
+    font-size: 12px;
+  }
+  .site-footer a{ color: var(--text-dim); text-decoration:none; }
+  .site-footer a:hover{ color: var(--accent); }
+</style>
+
 {% if site_matomo %}
 <!-- Matomo -->
 <script>

@@ -24,7 +24,7 @@ import importlib.resources as importlib_resources
 import json
 from typing import Any
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, jsonify, url_for
 
 from .limiter import limiter
 
@@ -109,7 +109,14 @@ def capabilities():
             "replacement": "GET /api/v2/servers",
             "message": "..."
           }
-        ]
+        ],
+        "privacy_policy_url": "https://kartotek.eu/privacy/"
+                                             -- URL absolue, toujours renseignée (voir kartotek_master.privacy) :
+                                             -- politique de confidentialité du registre push centralisé,
+                                             -- interrogeable dès le lancement de l'app, avant la sélection d'un
+                                             -- serveur — utile pour l'écran "à propos" et pour la conformité
+                                             -- App Store/Play Store, qui exigent ce lien accessible depuis l'app
+                                             -- elle-même.
       }
 
     Compatibilité ascendante : un client qui ne connaît pas encore une
@@ -135,4 +142,5 @@ def capabilities():
             },
         },
         "deprecations": _load_deprecations(),
+        "privacy_policy_url": url_for("privacy.index", _external=True),
     })

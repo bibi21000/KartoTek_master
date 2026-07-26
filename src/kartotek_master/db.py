@@ -17,7 +17,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,18 @@ def init_db():
                     cur.execute(f"ALTER TABLE servers_state ADD COLUMN {column} REAL;")
                 except sqlite3.OperationalError:
                     pass  # la colonne existe déjà
+            # Migration douce : cache des /api/v1/capabilities de chaque
+            # serveur (voir update_server_capabilities), pour que
+            # /api/v1/servers puisse les exposer sans appel HTTP à la
+            # demande — voir poller._fetch_capabilities.
+            try:
+                cur.execute("ALTER TABLE servers_state ADD COLUMN capabilities_json TEXT;")
+            except sqlite3.OperationalError:
+                pass  # la colonne existe déjà
+            try:
+                cur.execute("ALTER TABLE servers_state ADD COLUMN capabilities_updated_at TEXT;")
+            except sqlite3.OperationalError:
+                pass  # la colonne existe déjà
             try:
                 cur.execute("ALTER TABLE servers_state ADD COLUMN bounds_updated_at TEXT;")
             except sqlite3.OperationalError:
@@ -176,6 +188,37 @@ def init_db():
             )
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_push_lat_lon ON push_registrations(lat, lon);"
+            )
+            # Utilisé par purge_stale_push_registrations() pour retrouver
+            # rapidement les enregistrements jamais renouvelés, sans scanner
+            # toute la table à chaque cycle de purge.
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_push_updated_at ON push_registrations(updated_at);"
+            )
+            # Entitlements "version pro" validés côté serveur — voir
+            # kartotek_master.purchases. Un achat in-app (Google Play ou
+            # App Store) est vérifié une fois auprès du store correspondant
+            # puis mémorisé ici, pour que l'appli mobile puisse
+            # redemander son statut (device changé de serveur KartoTek,
+            # réinstallation, "restore purchases") sans revalider le reçu
+            # à chaque lancement. Clé = (device_id, product_id) : un même
+            # appareil peut en théorie posséder plusieurs produits futurs
+            # (aujourd'hui un seul, l'unlock pro).
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS purchase_entitlements (
+                    device_id     TEXT NOT NULL,
+                    product_id    TEXT NOT NULL,
+                    platform      TEXT NOT NULL,
+                    status        TEXT NOT NULL,
+                    purchase_ref  TEXT NOT NULL,
+                    verified_at   TEXT NOT NULL,
+                    PRIMARY KEY (device_id, product_id)
+                );
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_purchase_device ON purchase_entitlements(device_id);"
             )
 
 
@@ -389,6 +432,34 @@ def count_points():
         return cur.fetchone()["c"]
 
 
+def update_server_capabilities(server_url: str, capabilities_json: str):
+    """
+    Enregistre en cache le JSON brut renvoyé par GET /api/v1/capabilities
+    d'un serveur, récupéré par le poller à chaque cycle (indépendamment
+    des changements de dbid : contrairement aux bounds, les capabilities
+    peuvent changer sans qu'aucune carte ne soit ajoutée/modifiée — ex.
+    activation de similar_search, création d'un premier compte manager,
+    changement de min_supported_client).
+
+    Stocké tel quel (chaîne JSON), reparsé à la lecture par
+    /api/v1/servers (kartotek_master.app) — évite de dupliquer ici la
+    connaissance du schéma de /api/v1/capabilities, qui appartient à
+    flpostcards.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO servers_state (server_url, capabilities_json, capabilities_updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(server_url) DO UPDATE SET
+                capabilities_json = excluded.capabilities_json,
+                capabilities_updated_at = excluded.capabilities_updated_at
+            """,
+            (server_url, capabilities_json, now),
+        )
+
+
 def delete_server_data(server_url: str):
     """
     Supprime toutes les données d'un serveur (points GPS + ligne d'état),
@@ -517,6 +588,33 @@ def delete_push_registrations(tokens):
         cur.executemany("DELETE FROM push_registrations WHERE token = ?", [(t,) for t in tokens])
 
 
+def purge_stale_push_registrations(max_age_days: float) -> int:
+    """
+    Supprime les inscriptions push dont `updated_at` n'a pas été renouvelé
+    depuis plus de `max_age_days` jours.
+
+    Complète (sans le remplacer) le nettoyage réactif fait par
+    delete_push_registrations() sur retour 404/410 de FCM/APNs :
+    celui-ci ne détecte un token mort que lorsqu'on tente RÉELLEMENT de
+    lui envoyer une notification (donc jamais pour un appareil hors de
+    toute zone surveillée, ou si aucune carte n'est ajoutée entre-temps),
+    et peut mettre longtemps à réagir à une désinstallation sans
+    /api/v1/push/unregister.
+
+    Un appareil dont l'app tourne normalement renouvelle son inscription
+    à chaque `POST /api/v1/push/register` (voir upsert_push_registration,
+    appelé par l'app mobile a minima à chaque changement de position
+    surveillée) : `updated_at` ne devient ancien que si l'appareil ne
+    s'est plus jamais réinscrit, ce qui est le signal recherché ici.
+
+    Retourne le nombre de lignes supprimées.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
+    with get_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM push_registrations WHERE updated_at < ?", (cutoff,))
+        return cur.rowcount
+
+
 def query_push_registrations_near(lat: float, lon: float, max_radius_m: float):
     """
     Pré-filtre bon marché en SQL (bounding box ~ max_radius_m autour de
@@ -544,6 +642,56 @@ def count_push_registrations() -> int:
     with get_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS c FROM push_registrations")
         return cur.fetchone()["c"]
+
+
+# ---------------------------------------------------------------------------
+# Entitlements "version pro" (achats in-app validés côté serveur)
+# ---------------------------------------------------------------------------
+
+def upsert_purchase_entitlement(
+    device_id: str, product_id: str, platform: str, status: str, purchase_ref: str,
+) -> None:
+    """
+    Enregistre ou remplace l'entitlement d'un appareil pour un produit.
+    Une revérification (même appareil, même produit) écrase l'entrée
+    précédente — c'est voulu : c'est ainsi qu'un statut "revoked" (voir
+    kartotek_master.purchases, remboursement/annulation détecté à la
+    revérification) remplace un ancien statut "active".
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO purchase_entitlements
+                (device_id, product_id, platform, status, purchase_ref, verified_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(device_id, product_id) DO UPDATE SET
+                platform = excluded.platform,
+                status = excluded.status,
+                purchase_ref = excluded.purchase_ref,
+                verified_at = excluded.verified_at
+            """,
+            (device_id, product_id, platform, status, purchase_ref, now),
+        )
+
+
+def get_purchase_entitlement(device_id: str, product_id: str):
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT * FROM purchase_entitlements WHERE device_id = ? AND product_id = ?",
+            (device_id, product_id),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def list_purchase_entitlements(device_id: str) -> list[dict]:
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT * FROM purchase_entitlements WHERE device_id = ?",
+            (device_id,),
+        )
+        return [dict(r) for r in cur.fetchall()]
 
 
 def query_points_clustered(min_lon, min_lat, max_lon, max_lat, precision, limit):

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-13 10:28+0000\n"
+"POT-Creation-Date: 2026-07-26 17:36+0000\n"
 "PO-Revision-Date: 2026-07-13 12:34+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -18,384 +18,484 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: src/kartotek_master/contact/__init__.py:49
+#: contact/__init__.py:49
 msgid "Nouveau message depuis le site"
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:85
+#: contact/__init__.py:85
 msgid "Contact"
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:94
-#: src/kartotek_master/contact/__init__.py:120
+#: contact/__init__.py:94 contact/__init__.py:120
 msgid "Votre message a bien été envoyé, merci !"
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:101
+#: contact/__init__.py:101
 msgid "Le nom est obligatoire."
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:103
+#: contact/__init__.py:103
 msgid "L'adresse email est obligatoire."
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:105
+#: contact/__init__.py:105
 msgid "L'adresse email n'est pas valide."
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:107
+#: contact/__init__.py:107
 msgid "Le message ne peut pas être vide."
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:117
+#: contact/__init__.py:117
 msgid "L'envoi du message a échoué. Réessayez plus tard."
 msgstr ""
 
-#: src/kartotek_master/contact/__init__.py:129
+#: contact/__init__.py:129
 msgid "Contactez-moi à propos de ma collection de cartes postales."
 msgstr ""
 
-#: src/kartotek_master/download/__init__.py:40
-#: src/kartotek_master/templates/info/index.html:12
+#: download/__init__.py:276 templates/download/guide.html:32
 msgid "Télécharger l'application Kartotek"
 msgstr ""
 
-#: src/kartotek_master/download/__init__.py:68
+#: download/__init__.py:348
 msgid "Téléchargements de l'application KartoTek."
 msgstr ""
 
-#: src/kartotek_master/info/__init__.py:17
-msgid "À propos"
+#: info/__init__.py:17
+msgid "Informations"
 msgstr ""
 
-#: src/kartotek_master/info/__init__.py:23
-msgid "À propos de KartoTek et de cette collection de cartes postales."
-msgstr ""
-
-#: src/kartotek_master/status/__init__.py:26
-msgid "État des synchronisations"
-msgstr ""
-
-#: src/kartotek_master/templates/base.html:6
-#: src/kartotek_master/templates/index.html:6
+#: info/__init__.py:22 templates/base.html:6 templates/index.html:6
 msgid "KartoTek"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:172
+#: info/__init__.py:23
+msgid "KartoTek et cette collection de cartes postales."
+msgstr ""
+
+#: info/__init__.py:36
+msgid "Serveurs"
+msgstr ""
+
+#: info/__init__.py:42
+msgid "Liste des serveurs KartoTek connus."
+msgstr ""
+
+#: privacy/__init__.py:45
+msgid "L'équipe qui exploite kartotek.eu"
+msgstr "L'équipe qui exploite kartotek.eu"
+
+#: privacy/__init__.py:54 templates/base.html:84 templates/info/index.html:159
+msgid "Politique de confidentialité"
+msgstr "Politique de confidentialité"
+
+#: privacy/__init__.py:68
+msgid "Quelles données kartotek.eu collecte et pourquoi, notamment pour les notifications push."
+msgstr "Quelles données kartotek.eu collecte et pourquoi, notamment pour les notifications push."
+
+#: status/__init__.py:26
+msgid "État des synchronisations"
+msgstr ""
+
+#: submit_server/__init__.py:76 templates/info/index.html:118
+msgid "Référencer mon serveur"
+msgstr ""
+
+#: submit_server/__init__.py:83 submit_server/__init__.py:111
+msgid "Merci, votre proposition a bien été envoyée !"
+msgstr ""
+
+#: submit_server/__init__.py:90
+msgid "Le nom du serveur est obligatoire."
+msgstr ""
+
+#: submit_server/__init__.py:92
+msgid "L'URL du serveur est obligatoire."
+msgstr ""
+
+#: submit_server/__init__.py:97
+msgid "L'URL n'est pas valide (doit commencer par http:// ou https://)."
+msgstr ""
+
+#: submit_server/__init__.py:100
+msgid "Une courte description est nécessaire."
+msgstr ""
+
+#: submit_server/__init__.py:108
+msgid "L'envoi de la proposition a échoué. Réessayez plus tard."
+msgstr ""
+
+#: submit_server/__init__.py:120
+msgid "Proposez votre serveur pour l'ajouter à KartoTek."
+msgstr ""
+
+#: templates/index.html:184
 msgid "Rechercher un lieu, une adresse…"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:177
+#: templates/index.html:189
 msgid "Centrer sur ma position"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:198
+#: templates/index.html:198
 msgid "Aller à"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:199
-#: src/kartotek_master/templates/index.html:218
+#: templates/index.html:199 templates/index.html:218
 msgid "Aucun point à l'écran"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:203
+#: templates/index.html:203
 msgid "points chargés à l'écran"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:215
+#: templates/index.html:215
 msgid "Votre position"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:216
+#: templates/index.html:216
 msgid "Aucun résultat"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:217
+#: templates/index.html:217
 msgid "Recherche indisponible"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:219
+#: templates/index.html:219
 #, python-brace-format
 msgid "total en base : {n}"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:220
+#: templates/index.html:220
 #, python-brace-format
 msgid "carte n°{id}"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:221
+#: templates/index.html:221
 msgid "lat"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:222
+#: templates/index.html:222
 msgid "lon"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:223
+#: templates/index.html:223
 msgid "serveur"
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:224
-msgid ""
-"Géolocalisation indisponible : cette page doit être servie en HTTPS (ou "
-"via localhost)."
+#: templates/index.html:224
+msgid "Géolocalisation indisponible : cette page doit être servie en HTTPS (ou via localhost)."
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:225
+#: templates/index.html:225
 msgid "Géolocalisation refusée par le navigateur."
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:226
+#: templates/index.html:226
 msgid "Position indisponible pour le moment."
 msgstr ""
 
-#: src/kartotek_master/templates/index.html:227
+#: templates/index.html:227
 msgid "Délai de géolocalisation dépassé."
 msgstr ""
 
-#: src/kartotek_master/templates/contact/index.html:13
+#: templates/contact/index.html:15 templates/submit_server/index.html:18
 msgid "Laissez ce champ vide"
 msgstr ""
 
-#: src/kartotek_master/templates/contact/index.html:18
-#: src/kartotek_master/templates/status/index.html:40
+#: templates/contact/index.html:20 templates/status/index.html:40
 msgid "Nom"
 msgstr ""
 
-#: src/kartotek_master/templates/contact/index.html:24
+#: templates/contact/index.html:26
 msgid "Email"
 msgstr ""
 
-#: src/kartotek_master/templates/contact/index.html:30
+#: templates/contact/index.html:32
 msgid "Sujet"
 msgstr ""
 
-#: src/kartotek_master/templates/contact/index.html:35
+#: templates/contact/index.html:37
 msgid "Message"
 msgstr ""
 
-#: src/kartotek_master/templates/contact/index.html:40
+#: templates/contact/index.html:42
 msgid "Envoyer"
 msgstr ""
 
-#: src/kartotek_master/templates/download/index.html:22
+#: templates/download/index.html:61
 msgid "Aucun fichier disponible pour le moment."
 msgstr ""
 
-#: src/kartotek_master/templates/download/index.html:27
+#: templates/download/index.html:66
 msgid "Fichier"
 msgstr ""
 
-#: src/kartotek_master/templates/download/index.html:28
+#: templates/download/index.html:67
 msgid "Taille"
 msgstr ""
 
-#: src/kartotek_master/templates/download/index.html:29
+#: templates/download/index.html:68
 msgid "Date"
 msgstr ""
 
-#: src/kartotek_master/templates/info/index.html:16
+#: templates/info/index.html:78
+msgid "Ce serveur  rassemble sur une même carte les cartes postales anciennes géolocalisées de plusieurs collections KartoTek, synchronisées en continu."
+msgstr ""
+
+#: templates/info/index.html:90
+msgid "Voir la carte"
+msgstr ""
+
+#: templates/info/index.html:91
+msgid "Explorer toutes les cartes postales géolocalisées."
+msgstr ""
+
+#: templates/info/index.html:104
+msgid "Liste des serveurs"
+msgstr ""
+
+#: templates/info/index.html:105
+msgid "Tous les serveurs connus, triés par proximité."
+msgstr ""
+
+#: templates/info/index.html:119
+msgid "Proposer votre serveur pour rejoindre la carte."
+msgstr ""
+
+#: templates/info/index.html:132
+msgid "Télécharger l'application"
+msgstr ""
+
+#: templates/info/index.html:133
+msgid "Installer l'application Kartotek."
+msgstr ""
+
+#: templates/info/index.html:146
 msgid "Me contacter"
 msgstr ""
 
-#: src/kartotek_master/templates/partials/header.html:19
+#: templates/info/index.html:147
+msgid "Une question, une suggestion ?"
+msgstr ""
+
+#: templates/info/index.html:160
+msgid "Quelles données sont collectées, et pourquoi."
+msgstr "Quelles données sont collectées, et pourquoi."
+
+#: templates/info/servers.html:66
+msgid "Chargement des serveurs…"
+msgstr ""
+
+#: templates/info/servers.html:73
+msgid "Serveur"
+msgstr ""
+
+#: templates/info/servers.html:74 templates/submit_server/index.html:35
+msgid "Description"
+msgstr ""
+
+#: templates/info/servers.html:75
+msgid "Distance"
+msgstr ""
+
+#: templates/info/servers.html:79
+msgid "Chargement…"
+msgstr ""
+
+#: templates/info/servers.html:87
+msgid "Triés par proximité avec votre position."
+msgstr ""
+
+#: templates/info/servers.html:88
+msgid "Position non partagée : tri alphabétique."
+msgstr ""
+
+#: templates/info/servers.html:89
+msgid "Impossible de charger la liste des serveurs."
+msgstr ""
+
+#: templates/info/servers.html:90
+msgid "Aucun serveur connu pour le moment."
+msgstr ""
+
+#: templates/info/servers.html:91
+#, python-brace-format
+msgid "{n} km"
+msgstr ""
+
+#: templates/partials/header.html:24
 msgid "KartoTek – Vintage postcard manager"
 msgstr ""
 
-#: src/kartotek_master/templates/partials/header.html:23
+#: templates/partials/header.html:28
 msgid "Langue"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:31
+#: templates/privacy/index.html:23
+#, python-format
+msgid "Dernière mise à jour : %(date)s"
+msgstr "Dernière mise à jour : %(date)s"
+
+#: templates/privacy/index.html:28
+msgid "kartotek.eu est l'annuaire et le point d'entrée du réseau KartoTek : il liste les sites indépendants (chacun sa propre collection de cartes postales), affiche une carte agrégée, et gère de façon centralisée le registre des notifications push utilisé par l'application mobile. Cette page décrit les données traitées par kartotek.eu lui-même."
+msgstr "kartotek.eu est l'annuaire et le point d'entrée du réseau KartoTek : il liste les sites indépendants (chacun sa propre collection de cartes postales), affiche une carte agrégée, et gère de façon centralisée le registre des notifications push utilisé par l'application mobile. Cette page décrit les données traitées par kartotek.eu lui-même."
+
+#: templates/privacy/index.html:36
+msgid "Responsable de ce site"
+msgstr "Responsable de ce site"
+
+#: templates/privacy/index.html:38
+#, python-format
+msgid "kartotek.eu est géré par : %(name)s."
+msgstr "kartotek.eu est géré par : %(name)s."
+
+#: templates/privacy/index.html:40
+#, python-format
+msgid "Contact : %(email)s."
+msgstr "Contact : %(email)s."
+
+#: templates/privacy/index.html:42
+msgid "Aucune adresse de contact n'est publiée pour le moment ; utilisez le formulaire de la page « Référencer mon serveur » pour toute question relative aux données."
+msgstr "Aucune adresse de contact n'est publiée pour le moment ; utilisez le formulaire de la page « Référencer mon serveur » pour toute question relative aux données."
+
+#: templates/privacy/index.html:48
+msgid "Notifications push"
+msgstr "Notifications push"
+
+#: templates/privacy/index.html:50
+msgid "Quand vous activez les notifications dans l'application mobile, un identifiant technique (« token ») propre à votre appareil est enregistré ici, avec la plateforme (Android/iOS), une position approximative et un rayon de recherche, afin de savoir quand vous prévenir qu'une nouvelle carte postale est disponible à proximité (POST /api/v1/push/register). Vous pouvez supprimer cet enregistrement à tout moment depuis l'application (POST /api/v1/push/unregister) ; un token qui n'est plus valide (désinstallation de l'app, changement de téléphone) est aussi supprimé automatiquement lorsqu'Apple ou Google nous signale son invalidité."
+msgstr "Quand vous activez les notifications dans l'application mobile, un identifiant technique (« token ») propre à votre appareil est enregistré ici, avec la plateforme (Android/iOS), une position approximative et un rayon de recherche, afin de savoir quand vous prévenir qu'une nouvelle carte postale est disponible à proximité (POST /api/v1/push/register). Vous pouvez supprimer cet enregistrement à tout moment depuis l'application (POST /api/v1/push/unregister) ; un token qui n'est plus valide (désinstallation de l'app, changement de téléphone) est aussi supprimé automatiquement lorsqu'Apple ou Google nous signale son invalidité."
+
+#: templates/privacy/index.html:63
+msgid "L'envoi effectif des notifications passe par les services d'Apple (APNs) et/ou Google (Firebase Cloud Messaging) : ces sociétés reçoivent le token nécessaire à l'envoi, selon leurs propres conditions d'utilisation respectives, mais ne reçoivent ni votre position ni votre identité."
+msgstr "L'envoi effectif des notifications passe par les services d'Apple (APNs) et/ou Google (Firebase Cloud Messaging) : ces sociétés reçoivent le token nécessaire à l'envoi, selon leurs propres conditions d'utilisation respectives, mais ne reçoivent ni votre position ni votre identité."
+
+#: templates/privacy/index.html:69
+msgid "Sur ce déploiement, aucun des deux services n'est actuellement configuré : les tokens sont enregistrés mais aucune notification n'est réellement envoyée."
+msgstr "Sur ce déploiement, aucun des deux services n'est actuellement configuré : les tokens sont enregistrés mais aucune notification n'est réellement envoyée."
+
+#: templates/privacy/index.html:75
+msgid "Chaque site KartoTek (ex. server1.kartotek.eu) ne fait que signaler « une nouvelle carte a été ajoutée à telle position » à kartotek.eu, via un appel interne protégé par un secret partagé — il ne reçoit jamais lui-même votre token ni votre position exacte."
+msgstr "Chaque site KartoTek (ex. server1.kartotek.eu) ne fait que signaler « une nouvelle carte a été ajoutée à telle position » à kartotek.eu, via un appel interne protégé par un secret partagé — il ne reçoit jamais lui-même votre token ni votre position exacte."
+
+#: templates/privacy/index.html:82
+msgid "Liste des serveurs et carte agrégée"
+msgstr "Liste des serveurs et carte agrégée"
+
+#: templates/privacy/index.html:84
+msgid "kartotek.eu interroge périodiquement chaque site du réseau (bounds, capacités déclarées) pour construire la liste des serveurs et la carte agrégée. Ces informations sont publiques et ne concernent pas des personnes."
+msgstr "kartotek.eu interroge périodiquement chaque site du réseau (bounds, capacités déclarées) pour construire la liste des serveurs et la carte agrégée. Ces informations sont publiques et ne concernent pas des personnes."
+
+#: templates/privacy/index.html:90
+msgid "Formulaires (contact, référencement de serveur)"
+msgstr "Formulaires (contact, référencement de serveur)"
+
+#: templates/privacy/index.html:92
+msgid "Si vous utilisez le formulaire de contact ou le formulaire de référencement d'un nouveau serveur, les informations saisies (nom, email, message ou URL du site proposé) sont transmises par email à l'équipe qui exploite kartotek.eu, uniquement pour vous répondre ou étudier votre demande."
+msgstr "Si vous utilisez le formulaire de contact ou le formulaire de référencement d'un nouveau serveur, les informations saisies (nom, email, message ou URL du site proposé) sont transmises par email à l'équipe qui exploite kartotek.eu, uniquement pour vous répondre ou étudier votre demande."
+
+#: templates/privacy/index.html:100
+msgid "Mesure d'audience"
+msgstr "Mesure d'audience"
+
+#: templates/privacy/index.html:102
+msgid "Ce site utilise Matomo pour mesurer la fréquentation des pages web (pas de l'application mobile), hébergé par l'équipe qui exploite kartotek.eu, sans transmission à un tiers publicitaire."
+msgstr "Ce site utilise Matomo pour mesurer la fréquentation des pages web (pas de l'application mobile), hébergé par l'équipe qui exploite kartotek.eu, sans transmission à un tiers publicitaire."
+
+#: templates/privacy/index.html:109
+msgid "Vos droits"
+msgstr "Vos droits"
+
+#: templates/privacy/index.html:111
+#, python-format
+msgid "Vous pouvez demander la suppression de votre token push à tout moment depuis l'application. Pour toute autre demande d'accès, de rectification ou de suppression, contactez l'équipe qui exploite kartotek.eu%(via_email)s."
+msgstr "Vous pouvez demander la suppression de votre token push à tout moment depuis l'application. Pour toute autre demande d'accès, de rectification ou de suppression, contactez l'équipe qui exploite kartotek.eu%(via_email)s."
+
+#: templates/privacy/index.html:115
+#, python-format
+msgid " à %(email)s"
+msgstr " à %(email)s"
+
+#: templates/privacy/index.html:118
+msgid "Autres sites du réseau KartoTek"
+msgstr "Autres sites du réseau KartoTek"
+
+#: templates/privacy/index.html:120
+msgid "Les comptes gestionnaires, les repérages de terrain et les photos envoyées pour « cartes similaires » sont gérés individuellement par chaque site KartoTek (ex. server1.kartotek.eu), pas par kartotek.eu. Reportez-vous à la politique de confidentialité du site concerné pour ces données."
+msgstr "Les comptes gestionnaires, les repérages de terrain et les photos envoyées pour « cartes similaires » sont gérés individuellement par chaque site KartoTek (ex. server1.kartotek.eu), pas par kartotek.eu. Reportez-vous à la politique de confidentialité du site concerné pour ces données."
+
+#: templates/privacy/index.html:128
+msgid "Absence de sous-traitance publicitaire"
+msgstr "Absence de sous-traitance publicitaire"
+
+#: templates/privacy/index.html:130
+msgid "kartotek.eu ne vend ni ne partage vos données avec des annonceurs ou courtiers en données, en dehors de la transmission strictement nécessaire à Apple/Google pour l'envoi des notifications que vous avez demandées."
+msgstr "kartotek.eu ne vend ni ne partage vos données avec des annonceurs ou courtiers en données, en dehors de la transmission strictement nécessaire à Apple/Google pour l'envoi des notifications que vous avez demandées."
+
+#: templates/status/index.html:31
 #, python-format
 msgid "%(n)s points GPS en base au total."
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:34
+#: templates/status/index.html:34
 msgid "Aucun serveur synchronisé pour le moment."
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:41
+#: templates/status/index.html:41
 msgid "URL"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:43
+#: templates/status/index.html:43
 msgid "Dernière vérification"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:44
+#: templates/status/index.html:44
 msgid "MAJ points"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:45
+#: templates/status/index.html:45
 msgid "Points"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:46
+#: templates/status/index.html:46
 msgid "Étendue GPS"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:47
+#: templates/status/index.html:47
 msgid "Maj Étendue GPS"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:48
+#: templates/status/index.html:48
 msgid "Dernière erreur"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:56
+#: templates/status/index.html:56
 msgid "Erreur"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:58
+#: templates/status/index.html:58
 msgid "OK"
 msgstr ""
 
-#: src/kartotek_master/templates/status/index.html:60
+#: templates/status/index.html:60
 msgid "Jamais synchronisé"
 msgstr ""
 
-#: src/kartotek_master/templates/info/index.html:22
-msgid "Liste des serveurs"
-msgstr ""
-
-#: src/kartotek_master/info/__init__.py:35
-msgid "Serveurs"
-msgstr ""
-
-#: src/kartotek_master/info/__init__.py:39
-msgid "Liste des serveurs KartoTek connus."
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:68
-msgid "Chargement des serveurs…"
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:78
-msgid "Serveur"
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:79
-msgid "Description"
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:80
-msgid "Distance"
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:84
-msgid "Chargement…"
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:97
-msgid "Triés par proximité avec votre position."
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:98
-msgid "Position non partagée : tri alphabétique."
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:99
-msgid "Impossible de charger la liste des serveurs."
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:100
-msgid "Aucun serveur connu pour le moment."
-msgstr ""
-
-#: src/kartotek_master/templates/info/servers.html:101
-msgid "{n} km"
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:82
-msgid "Ce serveur  rassemble sur une même carte les cartes postales anciennes géolocalisées de plusieurs collections KartoTek, synchronisées en continu."
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:94
-msgid "Voir la carte"
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:95
-msgid "Explorer toutes les cartes postales géolocalisées."
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:105
-msgid "Tous les serveurs connus, triés par proximité."
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:114
-#: src/kartotek_master/submit_server/__init__.py:73
-#: src/kartotek_master/submit_server/__init__.py:78
-msgid "Référencer mon serveur"
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:115
-msgid "Proposer votre serveur pour rejoindre la carte."
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:125
-msgid "Télécharger l'application"
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:126
-msgid "Installer l'application Kartotek."
-msgstr ""
-
-#: src/kartotek_master/templates/info/index.html:135
-msgid "Une question, une suggestion ?"
-msgstr ""
-
-#: src/kartotek_master/info/__init__.py:17
-msgid "Informations"
-msgstr ""
-
-#: src/kartotek_master/info/__init__.py:19
-msgid "KartoTek et cette collection de cartes postales."
-msgstr ""
-
-#: src/kartotek_master/templates/submit_server/index.html:7
+#: templates/submit_server/index.html:8
 msgid "Vous gérez un serveur KartoTek et souhaitez qu'il apparaisse sur la carte et dans la liste des serveurs ? Décrivez-le ci-dessous."
 msgstr ""
 
-#: src/kartotek_master/templates/submit_server/index.html:22
+#: templates/submit_server/index.html:23
 msgid "Nom du serveur"
 msgstr ""
 
-#: src/kartotek_master/templates/submit_server/index.html:28
+#: templates/submit_server/index.html:29
 msgid "URL du serveur"
 msgstr ""
 
-#: src/kartotek_master/templates/submit_server/index.html:36
+#: templates/submit_server/index.html:40
 msgid "Proposer ce serveur"
-msgstr ""
-
-#: src/kartotek_master/submit_server/__init__.py:83
-#: src/kartotek_master/submit_server/__init__.py:113
-msgid "Merci, votre proposition a bien été envoyée !"
-msgstr ""
-
-#: src/kartotek_master/submit_server/__init__.py:92
-msgid "Le nom du serveur est obligatoire."
-msgstr ""
-
-#: src/kartotek_master/submit_server/__init__.py:94
-msgid "L'URL du serveur est obligatoire."
-msgstr ""
-
-#: src/kartotek_master/submit_server/__init__.py:99
-msgid "L'URL n'est pas valide (doit commencer par http:// ou https://)."
-msgstr ""
-
-#: src/kartotek_master/submit_server/__init__.py:102
-msgid "Une courte description est nécessaire."
-msgstr ""
-
-#: src/kartotek_master/submit_server/__init__.py:109
-msgid "L'envoi de la proposition a échoué. Réessayez plus tard."
-msgstr ""
-
-#: src/kartotek_master/submit_server/__init__.py:121
-msgid "Proposez votre serveur pour l'ajouter à KartoTek."
 msgstr ""
 

@@ -21,6 +21,7 @@ KARTOTEK_MASTER_CONF (également utilisée par gunicorn.conf.py).
 """
 
 import configparser
+import json
 import logging
 import logging.handlers
 import os
@@ -44,7 +45,9 @@ from .geoapi import bp as geoapi_bp
 from .info import bp as info_bp
 from .limiter import limiter
 from .poller import Poller
+from .privacy import bp as privacy_bp
 from .push_api import bp as push_api_bp
+from .purchases_api import bp as purchases_api_bp
 from .seo import bp as seo_bp
 from .status import bp as status_bp
 from .submit_server import bp as submit_server_bp
@@ -210,6 +213,16 @@ def create_app():
         app.config["SMTP_PASSWORD"] = contact_cfg.get("smtp_password", fallback="")
         app.config["SMTP_SECURITY"] = contact_cfg.get("smtp_security", fallback="starttls")
 
+    # Politique de confidentialité (section [privacy] de config.conf,
+    # entièrement optionnelle) — voir kartotek_master.privacy. Sans cette
+    # section, la page /privacy/ reste accessible mais affiche des
+    # libellés génériques (aucune valeur n'est bloquante ici).
+    if config.has_section("privacy"):
+        privacy_cfg = config["privacy"]
+        app.config["PRIVACY_OPERATOR_NAME"] = privacy_cfg.get("operator_name") or None
+        app.config["PRIVACY_OPERATOR_CONTACT"] = privacy_cfg.get("operator_contact") or None
+        app.config["PRIVACY_LAST_UPDATED"] = privacy_cfg.get("last_updated") or None
+
     map_cfg = config["map"]
     cluster_zoom_threshold = map_cfg.getint("cluster_zoom_threshold", fallback=14)
     max_points = map_cfg.getint("max_points_returned", fallback=5000)
@@ -251,6 +264,50 @@ def create_app():
         app.config.setdefault("PUSH_MAX_RADIUS_M", 5_000.0)
         app.config.setdefault("PUSH_NOTIFY_SECRET", None)
 
+    # Validation serveur des achats in-app ("déblocage pro") — voir
+    # kartotek_master.purchases et kartotek_master.purchases_api.
+    # Section [purchases] optionnelle : sans elle, POST
+    # /api/v1/purchase/verify refuse tout appel avec la plateforme
+    # concernée (501, credentials non configurés) plutôt que d'accorder
+    # un entitlement non vérifié.
+    #
+    # Exemple de section dans config.conf :
+    #   [purchases]
+    #   http_timeout_s = 10
+    #   google_play_package_name = eu.kartotek.mobile
+    #   google_play_service_account_file = /etc/kartotek-master/google-play-service-account.json
+    #   appstore_key_file = /etc/kartotek-master/AuthKey_XXXXXXXXXX.p8
+    #   appstore_key_id = XXXXXXXXXX
+    #   appstore_issuer_id = 69a6de..-....-....-....-............
+    #   appstore_bundle_id = eu.kartotek.mobile
+    #   appstore_root_ca_file = /etc/kartotek-master/AppleRootCA-G3.pem
+    #   appstore_use_sandbox = false
+    if config.has_section("purchases"):
+        purchases_cfg = config["purchases"]
+        app.config["PURCHASE_HTTP_TIMEOUT_S"] = purchases_cfg.getfloat("http_timeout_s", fallback=10.0)
+        app.config["GOOGLE_PLAY_PACKAGE_NAME"] = purchases_cfg.get("google_play_package_name") or None
+        app.config["GOOGLE_PLAY_SERVICE_ACCOUNT_FILE"] = (
+            purchases_cfg.get("google_play_service_account_file") or None
+        )
+        app.config["APPSTORE_KEY_FILE"] = purchases_cfg.get("appstore_key_file") or None
+        app.config["APPSTORE_KEY_ID"] = purchases_cfg.get("appstore_key_id") or None
+        app.config["APPSTORE_ISSUER_ID"] = purchases_cfg.get("appstore_issuer_id") or None
+        app.config["APPSTORE_BUNDLE_ID"] = purchases_cfg.get("appstore_bundle_id") or None
+        app.config["APPSTORE_ROOT_CA_FILE"] = purchases_cfg.get("appstore_root_ca_file") or None
+        app.config["APPSTORE_USE_SANDBOX"] = purchases_cfg.getboolean(
+            "appstore_use_sandbox", fallback=False
+        )
+    else:
+        app.config.setdefault("PURCHASE_HTTP_TIMEOUT_S", 10.0)
+        app.config.setdefault("GOOGLE_PLAY_PACKAGE_NAME", None)
+        app.config.setdefault("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE", None)
+        app.config.setdefault("APPSTORE_KEY_FILE", None)
+        app.config.setdefault("APPSTORE_KEY_ID", None)
+        app.config.setdefault("APPSTORE_ISSUER_ID", None)
+        app.config.setdefault("APPSTORE_BUNDLE_ID", None)
+        app.config.setdefault("APPSTORE_ROOT_CA_FILE", None)
+        app.config.setdefault("APPSTORE_USE_SANDBOX", False)
+
     # Gouvernance de version pour le client mobile (voir
     # kartotek_master.capabilities -> /api/v1/capabilities) : interrogé
     # une seule fois au démarrage de l'app, avant même la sélection
@@ -289,6 +346,10 @@ def create_app():
         app.config.setdefault("STORE_URL_ANDROID", None)
 
     app.register_blueprint(info_bp)
+    # /privacy/ — politique de confidentialité, toujours active (contrairement
+    # à /contact/ qui dépend de la config SMTP) : Apple/Google l'exigent pour
+    # une app qui enregistre des tokens push (voir kartotek_master.privacy).
+    app.register_blueprint(privacy_bp)
     app.register_blueprint(download_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(status_bp)
@@ -303,6 +364,9 @@ def create_app():
     # /api/v1/push/register, /unregister, /notify — registre centralisé
     # des tokens push + envoi FCM/APNs (voir kartotek_master.push_api).
     app.register_blueprint(push_api_bp)
+    # /api/v1/purchase/verify, /status — validation serveur des achats
+    # in-app "déblocage pro" (voir kartotek_master.purchases_api).
+    app.register_blueprint(purchases_api_bp)
     # Sans préfixe : les fichiers de vérification de propriété (Google
     # Search Console, Bing...) doivent être servis exactement à la racine
     # du domaine, tout comme /sitemap.xml et /robots.txt.
@@ -354,6 +418,62 @@ def create_app():
             logger.warning("Recherche Nominatim échouée : %s", exc)
             return jsonify({"error": "recherche indisponible"}), 502
 
+    def _capabilities_summary(capabilities_json: str | None) -> dict | None:
+        """
+        Réduit le JSON /api/v1/capabilities mis en cache par le poller
+        (voir kartotek_master.poller._fetch_capabilities) au sous-ensemble
+        utile à l'app mobile pour DÉCIDER si un serveur mérite d'être
+        interrogé, sans lui faire tout retélécharger :
+
+          - similar_search.enabled : pour proposer ce serveur dans le
+            sélecteur de l'écran "similaires" (pro)
+          - manager_accounts.enabled : pour savoir si une connexion
+            manager a une chance d'aboutir sur ce serveur avant de tenter
+            un login
+          - collections : {enabled, count} — pour l'écran "ici"/galerie,
+            évite d'interroger un serveur qui n'a pas de collections
+            structurées si le client filtre dessus
+          - api_version.min_supported_client : pour que le client puisse
+            éventuellement écarter localement un serveur trop exigeant
+            SANS attendre un 4xx applicatif
+
+        Volontairement PAS un miroir complet de /api/v1/capabilities :
+        seuls les champs qui influent sur "quel serveur choisir/afficher"
+        sont dupliqués ici. Pour tout le reste (seuils, force_update,
+        deprecations...), le client continue d'appeler
+        /api/v1/capabilities sur le serveur choisi une fois la sélection
+        faite — cette route reste la source de vérité.
+
+        Renvoie None si aucune capability n'a encore été récupérée avec
+        succès pour ce serveur (poller pas encore passé, serveur trop
+        ancien qui ne connaît pas /api/v1/capabilities, ou dernière
+        tentative en échec) : à distinguer d'un serveur dont on sait
+        positivement qu'il n'a aucune fonctionnalité activée.
+        """
+        if not capabilities_json:
+            return None
+        try:
+            data = json.loads(capabilities_json)
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(data, dict):
+            return None
+
+        similar = data.get("similar_search") or {}
+        manager = data.get("manager_accounts") or {}
+        collections = data.get("collections") or {}
+        api_version = data.get("api_version") or {}
+
+        return {
+            "similar_search": bool(similar.get("enabled")),
+            "manager_accounts": bool(manager.get("enabled")),
+            "collections": {
+                "enabled": bool(collections.get("enabled")),
+                "count": collections.get("count"),
+            },
+            "min_supported_client": api_version.get("min_supported_client"),
+        }
+
     @app.route("/api/v1/servers")
     def api_v1_servers():
         """
@@ -367,6 +487,15 @@ def create_app():
         injoignable) sont inclus mais placés en fin de liste, sans
         `distance_km`. Sans lat/lon fournis, la liste est simplement triée
         par nom.
+
+        Chaque entrée inclut aussi `capabilities` (voir
+        _capabilities_summary ci-dessus) : un résumé, mis en cache par le
+        poller via GET /api/v1/capabilities sur chaque serveur, permettant
+        à l'app mobile de filtrer/trier les serveurs à proposer (ex. écran
+        "similaires" : ne lister que ceux avec similar_search.enabled)
+        SANS avoir à interroger chaque serveur individuellement au moment
+        où l'écran s'affiche. `capabilities` vaut `null` si aucune donnée
+        n'est encore disponible pour ce serveur (voir _capabilities_summary).
         """
         try:
             user_lat = float(request.args["lat"])
@@ -388,6 +517,7 @@ def create_app():
                 # onerror de l'<img>.
                 "favicon": urljoin(s["server_url"], "/favicon.ico"),
                 "distance_km": None,
+                "capabilities": _capabilities_summary(s.get("capabilities_json")),
             }
             min_lat = s.get("bounds_min_lat")
             max_lat = s.get("bounds_max_lat")
