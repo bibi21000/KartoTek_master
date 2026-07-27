@@ -26,7 +26,7 @@ import logging
 import logging.handlers
 import os
 import signal
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -113,6 +113,15 @@ def create_app():
     # html_dir dans [flask] (relatif à la racine du projet, ou chemin
     # absolu). Réutilise le dossier data/ existant par défaut.
     app.config["HTMLDIR"] = str(BASE_DIR / config.get("flask", "html_dir", fallback="data"))
+    # Seuil (en jours) au-delà duquel un serveur listé par
+    # /api/v1/servers est signalé "stale" (voir _server_activity
+    # ci-dessous) : sa dernière synchronisation réussie (last_sync)
+    # date de plus de ce délai, donc ses cartes affichées à l'app
+    # mobile risquent d'être obsolètes ou le site est peut-être à
+    # l'arrêt. Configurable via [flask] server_stale_after_days.
+    app.config["SERVER_STALE_AFTER_DAYS"] = config.getfloat(
+        "flask", "server_stale_after_days", fallback=3.0
+    )
     # Répertoire contenant les fichiers proposés au téléchargement sur la
     # page /download/ (paquets, installeurs...), configurable via
     # download_dir dans [flask] (relatif à la racine du projet, ou
@@ -474,6 +483,50 @@ def create_app():
             "min_supported_client": api_version.get("min_supported_client"),
         }
 
+    def _server_activity(state: dict) -> dict:
+        """
+        Signaux de fraîcheur/activité réelle d'un serveur, pour
+        /api/v1/servers -- distincts de `capabilities` (qui décrit les
+        FONCTIONNALITÉS d'un serveur) : ici on répond à "est-ce que ce
+        site est vivant, et à jour ?", pour que l'app mobile puisse
+        déprioriser ou masquer un site à l'arrêt plutôt que de proposer
+        un annuaire mélangeant sites actifs et abandonnés.
+
+        - points_count : nombre de cartes actuellement connues de ce
+          serveur (voir db.update_server_dbid, reflète l'état courant,
+          pas un cumul)
+        - last_sync : dernière synchronisation RÉUSSIE (ISO 8601 UTC,
+          None si aucune n'a encore abouti)
+        - stale : True si last_sync date de plus de
+          SERVER_STALE_AFTER_DAYS jours (ou est inconnue) -- seuil
+          configurable, voir [flask] server_stale_after_days
+        - reachable : False si la dernière tentative de contact a
+          échoué (last_error non NULL en base). Le détail de l'erreur
+          n'est volontairement PAS exposé ici (pourrait révéler des
+          détails d'infrastructure du site distant) : voir /status
+          pour le diagnostic complet, réservé à l'administrateur du
+          master.
+        """
+        last_sync_raw = state.get("last_sync")
+        age_days = None
+        if last_sync_raw:
+            try:
+                last_sync_dt = datetime.fromisoformat(last_sync_raw)
+                if last_sync_dt.tzinfo is None:
+                    last_sync_dt = last_sync_dt.replace(tzinfo=timezone.utc)
+                age_days = (datetime.now(timezone.utc) - last_sync_dt).total_seconds() / 86400
+            except ValueError:
+                age_days = None
+
+        stale_after_days = app.config["SERVER_STALE_AFTER_DAYS"]
+        return {
+            "points_count": state.get("points_count") or 0,
+            "last_sync": last_sync_raw,
+            "stale": age_days is None or age_days > stale_after_days,
+            "reachable": state.get("last_error") is None,
+        }
+
+
     @app.route("/api/v1/servers")
     def api_v1_servers():
         """
@@ -496,6 +549,13 @@ def create_app():
         SANS avoir à interroger chaque serveur individuellement au moment
         où l'écran s'affiche. `capabilities` vaut `null` si aucune donnée
         n'est encore disponible pour ce serveur (voir _capabilities_summary).
+
+        Chaque entrée inclut aussi `activity` (voir _server_activity
+        ci-dessus) : nombre de cartes connues, date de dernière
+        synchronisation réussie, et indicateurs `stale`/`reachable` —
+        pour que le client puisse déprioriser ou grever visuellement un
+        site à l'arrêt plutôt que de le lister à égalité avec un site
+        actif.
         """
         try:
             user_lat = float(request.args["lat"])
@@ -518,6 +578,7 @@ def create_app():
                 "favicon": urljoin(s["server_url"], "/favicon.ico"),
                 "distance_km": None,
                 "capabilities": _capabilities_summary(s.get("capabilities_json")),
+                "activity": _server_activity(s),
             }
             min_lat = s.get("bounds_min_lat")
             max_lat = s.get("bounds_max_lat")
